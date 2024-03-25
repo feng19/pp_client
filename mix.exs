@@ -29,7 +29,8 @@ defmodule PpClient.MixProject do
   defp deps do
     [
       {:thousand_island, "~> 1.3"},
-      {:wind, "~> 0.3"}
+      {:wind, "~> 0.3"},
+      {:plug_crypto, "~> 2.0"}
     ]
   end
 end

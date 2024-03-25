@@ -24,14 +24,14 @@ defmodule PpClient.Http do
   end
 
   def handle_data(data, _socket, {:connected, ws_client} = state) do
-    GenServer.cast(ws_client, {:send, {:binary, data}})
+    PpClient.WSClient.send(ws_client, data)
     {:continue, state}
   end
 
   @impl GenServer
   def handle_cast(:connected, {socket, {:connecting, ws_client, next_request}}) do
     if next_request do
-      GenServer.cast(ws_client, {:send, {:binary, next_request}})
+      PpClient.WSClient.send(ws_client, next_request)
     else
       ThousandIsland.Socket.send(socket, "HTTP/1.1 200 Connection Established\r\n\r\n")
     end
