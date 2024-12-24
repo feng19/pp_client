@@ -5,13 +5,12 @@ defmodule PpClient.Application do
 
   @impl true
   def start(_type, _args) do
-    Logger.info("server start")
-
     children =
       if File.exists?("pp_config.exs") do
         {endpoints, _} = Code.eval_file("pp_config.exs")
         endpoints
       else
+        IO.puts("NOT found the pp_config.exs")
         []
       end
       |> child_specs()
