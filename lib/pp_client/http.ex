@@ -54,9 +54,9 @@ defmodule PpClient.Http do
   end
 
   defp parse_request(<<"CONNECT ", rest::binary>>) do
-    case String.split(rest, "\r\n", parts: 2) do
+    case String.split(rest, "\n", parts: 2, trim: true) do
       [first_line, _rest_lines] ->
-        [uri, _version] = String.split(first_line, " ", parts: 2)
+        [uri, _version] = String.split(first_line, " ", parts: 2, trim: true)
 
         case parse_uri(uri) do
           %URI{host: domain, port: nil} when is_binary(domain) ->
@@ -76,9 +76,9 @@ defmodule PpClient.Http do
   end
 
   defp parse_request(request) do
-    case String.split(request, "\r\n", parts: 2) do
+    case String.split(request, "\n", parts: 2, trim: true) do
       [first_line, rest_lines] ->
-        [method, uri, version] = String.split(first_line, " ", parts: 3)
+        [method, uri, version] = String.split(first_line, " ", parts: 3, trim: true)
 
         case parse_uri(uri) do
           %URI{host: domain, port: nil, path: path} when is_binary(domain) ->
@@ -105,7 +105,10 @@ defmodule PpClient.Http do
   end
 
   defp parse_uri(uri) do
-    case URI.parse(uri) do
+    uri
+    |> String.trim()
+    |> URI.parse()
+    |> case do
       %URI{host: nil, port: nil} -> URI.parse("//" <> uri)
       uri -> uri
     end

@@ -9,6 +9,7 @@ defmodule PpClient.WSClient do
   def start_link(%{servers: servers, opts: _opts}, target, parent) do
     server = Enum.random(servers)
     first_frame = get_first_frame_by_type(server, target)
+    headers = get_headers_by_type(server, target)
 
     uri =
       case server.uri do
@@ -18,6 +19,7 @@ defmodule PpClient.WSClient do
 
     Wind.Client.start_link(__MODULE__,
       uri: uri,
+      headers: headers,
       pp: %{server: server, first_frame: first_frame, parent: parent}
     )
   end
@@ -30,7 +32,12 @@ defmodule PpClient.WSClient do
   def handle_connect(state) do
     %{first_frame: first_frame, parent: parent} = Keyword.fetch!(state.opts, :pp)
     GenServer.cast(parent, :connected)
-    {:reply, first_frame, state}
+
+    if first_frame do
+      {:reply, first_frame, state}
+    else
+      {:noreply, state}
+    end
   end
 
   @impl true
@@ -46,10 +53,10 @@ defmodule PpClient.WSClient do
     {:noreply, state}
   end
 
-  def get_first_frame_by_type(
-        %{type: "exps", encrypt_type: encrypt_type, encrypt_key: key},
-        {_type, hostname, port}
-      ) do
+  defp get_first_frame_by_type(
+         %{type: "exps", encrypt_type: encrypt_type, encrypt_key: key},
+         {_type, hostname, port}
+       ) do
     len = byte_size(hostname)
     target_binary = <<@domain, port::16, len, hostname::binary-size(len)>>
 
@@ -62,7 +69,12 @@ defmodule PpClient.WSClient do
     {:binary, data}
   end
 
-  def get_first_frame_by_type(%{type: "cf-workers", password: password}, {_type, hostname, port}) do
-    {:text, ~s|{"hostname":"#{hostname}","port":#{port},"psw":"#{password}"}|}
+  defp get_first_frame_by_type(_, _), do: nil
+
+  defp get_headers_by_type(%{type: "cf-workers", password: password}, {_type, hostname, port}) do
+    target = Enum.join([hostname, port], ":")
+    [{"Authorization", password}, {"X-Proxy-Target", target}]
   end
+
+  defp get_headers_by_type(_, _), do: []
 end
