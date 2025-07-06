@@ -28,3 +28,4 @@ pp_client-*.tar
 *.iml
 pp_config.exs
 pp_client
+/burrito_out/

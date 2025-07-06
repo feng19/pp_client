@@ -1,0 +1,40 @@
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27.3'
+          elixir-version: '1.18.3'
+      - uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+      - name: Build
+        run: MIX_ENV=prod mix release --force --overwrite
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: PPClient ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          body: 'Take a look at the assets to download and install this app.'
+          draft: true
+          prerelease: false
+          files: |
+            burrito_out/pp_client_linux
+            burrito_out/pp_client_linux_aarch64
+            burrito_out/pp_client_macos
+            burrito_out/pp_client_macos_aarch64
+            burrito_out/pp_client_windows.exe

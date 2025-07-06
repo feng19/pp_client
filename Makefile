@@ -1,4 +1,4 @@
-.PHONY: run stop find_process build
+.PHONY: run stop find_process build uninstall release
 
 run:
 	iex -S mix
@@ -11,3 +11,9 @@ find_process:
 
 build:
 	mix escript.build
+
+uninstall:
+	pp_client maintenance uninstall -f
+
+release:
+	BURRITO_TARGET=macos_aarch64 MIX_ENV=prod mix release --force --overwrite
