@@ -22,7 +22,9 @@ jobs:
         with:
           version: 0.13.0
       - name: Build
-        run: MIX_ENV=prod mix release --force --overwrite
+        run: |
+          mix deps.get
+          MIX_ENV=prod mix release --force --overwrite
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
