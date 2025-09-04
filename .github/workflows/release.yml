@@ -24,6 +24,7 @@ jobs:
       - name: Build
         run: |
           mix deps.get
+          MIX_ENV=prod mix escript.build
           MIX_ENV=prod mix release --force --overwrite
       - name: Create Release
         id: create_release
@@ -35,6 +36,7 @@ jobs:
           draft: true
           prerelease: false
           files: |
+            pp_client
             burrito_out/pp_client_linux
             burrito_out/pp_client_linux_aarch64
             burrito_out/pp_client_macos

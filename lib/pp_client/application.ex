@@ -35,6 +35,8 @@ defmodule PpClient.Application do
         case type do
           :socks5 -> PpClient.Socks5
           :http -> PpClient.Http
+          :auto -> PpClient.AutoDetect
+          :http_to_socks5 -> PpClient.HttpToSocks5
         end
 
       handler_options = %{servers: servers, opts: opts}

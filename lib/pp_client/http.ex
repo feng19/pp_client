@@ -2,6 +2,7 @@ defmodule PpClient.Http do
   @moduledoc false
   use ThousandIsland.Handler
   require Logger
+  alias PpClient.WSClient
 
   @domain 0x03
 
@@ -15,7 +16,7 @@ defmodule PpClient.Http do
   def handle_data(request, _socket, {:wait_first, opts}) do
     case parse_request(request) do
       {:ok, target, next_request} ->
-        {:ok, ws_client} = PpClient.WSClient.start_link(opts, target, self())
+        {:ok, ws_client} = WSClient.start_link(opts, target, self())
         {:continue, {:connecting, ws_client, next_request}}
 
       _ ->
@@ -24,14 +25,14 @@ defmodule PpClient.Http do
   end
 
   def handle_data(data, _socket, {:connected, ws_client} = state) do
-    PpClient.WSClient.send(ws_client, data)
+    WSClient.send(ws_client, data)
     {:continue, state}
   end
 
   @impl GenServer
   def handle_cast(:connected, {socket, {:connecting, ws_client, next_request}}) do
     if next_request do
-      PpClient.WSClient.send(ws_client, next_request)
+      WSClient.send(ws_client, next_request)
     else
       ThousandIsland.Socket.send(socket, "HTTP/1.1 200 Connection Established\r\n\r\n")
     end
@@ -53,7 +54,7 @@ defmodule PpClient.Http do
     {:stop, :normal, {socket, state}}
   end
 
-  defp parse_request(<<"CONNECT ", rest::binary>>) do
+  def parse_request(<<"CONNECT ", rest::binary>>) do
     case String.split(rest, "\n", parts: 2, trim: true) do
       [first_line, _rest_lines] ->
         [uri, _version] = String.split(first_line, " ", parts: 2, trim: true)
@@ -75,7 +76,7 @@ defmodule PpClient.Http do
     end
   end
 
-  defp parse_request(request) do
+  def parse_request(request) do
     case String.split(request, "\n", parts: 2, trim: true) do
       [first_line, rest_lines] ->
         [method, uri, version] = String.split(first_line, " ", parts: 3, trim: true)

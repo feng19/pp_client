@@ -1,6 +1,7 @@
 defmodule PpClient.Socks5 do
   @moduledoc false
   use ThousandIsland.Handler
+  alias PpClient.WSClient
 
   @ipv4 0x01
   @ipv6 0x04
@@ -20,12 +21,12 @@ defmodule PpClient.Socks5 do
 
   def handle_data(<<5, 1, _Rsv, address_type, rest::binary>>, _socket, {:wait_second, opts}) do
     target = parse_target(address_type, rest)
-    {:ok, ws_client} = PpClient.WSClient.start_link(opts, target, self())
+    {:ok, ws_client} = WSClient.start_link(opts, target, self())
     {:continue, {:connecting, ws_client}}
   end
 
   def handle_data(data, _socket, {:connected, ws_client} = state) do
-    PpClient.WSClient.send(ws_client, data)
+    WSClient.send(ws_client, data)
     {:continue, state}
   end
 
