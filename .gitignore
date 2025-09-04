@@ -27,5 +27,5 @@ pp_client-*.tar
 .idea
 *.iml
 pp_config.exs
-pp_client
+/pp_client
 /burrito_out/
