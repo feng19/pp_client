@@ -4,13 +4,21 @@ defmodule PpClient.Application do
   require Logger
 
   @supervisor PpClient.Supervisor
+  @default_endpoint %{
+    enable: true,
+    type: :socks5,
+    ip: {127, 0, 0, 1},
+    port: 1080,
+    servers: [],
+    opts: []
+  }
 
   @impl true
   def start(_type, _args) do
     # Create ETS table for storing port information
     :ets.new(:port_endpoints, [:set, :public, :named_table])
 
-    children =
+    endpoints =
       if File.exists?("pp_config.exs") do
         {endpoints, _} = Code.eval_file("pp_config.exs")
         endpoints
@@ -20,17 +28,25 @@ defmodule PpClient.Application do
       end
       |> child_specs()
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: @supervisor)
+    children = [
+      PpClientWeb.Telemetry,
+      {Phoenix.PubSub, name: PpClient.PubSub},
+      # Start a worker by calling: PpClient.Worker.start_link(arg)
+      # {PpClient.Worker, arg},
+      # Start to serve requests, typically the last entry
+      PpClientWeb.Endpoint
+    ]
+
+    Supervisor.start_link(children ++ endpoints, strategy: :one_for_one, name: @supervisor)
   end
 
-  @default_endpoint %{
-    enable: true,
-    type: :socks5,
-    ip: {127, 0, 0, 1},
-    port: 1080,
-    servers: [],
-    opts: []
-  }
+  # Tell Phoenix to update the endpoint configuration
+  # whenever the application is updated.
+  @impl true
+  def config_change(changed, _new, removed) do
+    PpClientWeb.Endpoint.config_change(changed, removed)
+    :ok
+  end
 
   defp child_specs(endpoints) do
     endpoints
