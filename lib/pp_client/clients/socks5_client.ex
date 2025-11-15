@@ -53,7 +53,7 @@ defmodule PpClient.Socks5Client do
     {:noreply, state}
   end
 
-  def connect(server, target) do
+  defp connect(server, target) do
     with {:ok, socket} <- establish_proxy_connection(server),
          :ok <- perform_handshake(socket),
          :ok <- send_connect_request(socket, target),
@@ -62,19 +62,6 @@ defmodule PpClient.Socks5Client do
     else
       {:error, reason} = error ->
         Logger.error("SOCKS5 connection failed: #{inspect(reason)}")
-        error
-    end
-  end
-
-  def connect_and_send(proxy_config, target, data) do
-    with {:ok, socket} <- connect(proxy_config, target),
-         :ok <- :gen_tcp.send(socket, data),
-         {:ok, response} <- :gen_tcp.recv(socket, 0, @recv_timeout) do
-      :gen_tcp.close(socket)
-      {:ok, response}
-    else
-      {:error, reason} = error ->
-        Logger.error("SOCKS5 send failed: #{inspect(reason)}")
         error
     end
   end

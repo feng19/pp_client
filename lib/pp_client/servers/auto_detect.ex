@@ -36,6 +36,14 @@ defmodule PpClient.AutoDetect do
     {:continue, state}
   end
 
+  def handle_data(request, socket, state) do
+    if module = get_type_module() do
+      module.handle_data(request, socket, state)
+    else
+      {:close, nil}
+    end
+  end
+
   @impl GenServer
   def handle_cast(info, {socket, state}) do
     if module = get_type_module() do

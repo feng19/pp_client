@@ -9,7 +9,7 @@ stop:
 find_process:
 	ps -ef | grep pp_client
 
-build:
+escript:
 	MIX_ENV=prod mix escript.build
 
 uninstall:
