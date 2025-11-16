@@ -12,8 +12,12 @@ defmodule PpClient.Socks5Client do
   @atype_domain 3
   @atype_ipv6 4
 
-  def start_link(%{servers: servers, opts: _opts}, target, parent) do
-    GenServer.start_link(__MODULE__, server: Enum.random(servers), target: target, parent: parent)
+  def start_link(target, %{servers: servers}, parent) do
+    start_link(target, Enum.random(servers), parent)
+  end
+
+  def start_link(target, server, parent) do
+    GenServer.start_link(__MODULE__, server: server, target: target, parent: parent)
   end
 
   def send(pid, data) do

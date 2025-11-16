@@ -1,7 +1,7 @@
 defmodule PpClient.Socks5 do
   @moduledoc false
   use ThousandIsland.Handler
-  alias PpClient.WSClient
+  alias PpClient.AutoSwitchClient
 
   @ipv4 0x01
   @ipv6 0x04
@@ -21,19 +21,19 @@ defmodule PpClient.Socks5 do
 
   def handle_data(<<5, 1, _Rsv, address_type, rest::binary>>, _socket, {:wait_second, opts}) do
     target = parse_target(address_type, rest)
-    {:ok, ws_client} = WSClient.start_link(opts, target, self())
-    {:continue, {:connecting, ws_client}}
+    {:ok, client} = AutoSwitchClient.start_link(target, opts)
+    {:continue, {:connecting, client}}
   end
 
-  def handle_data(data, _socket, {:connected, ws_client} = state) do
-    WSClient.send(ws_client, data)
+  def handle_data(data, _socket, {:connected, client} = state) do
+    AutoSwitchClient.send(client, data)
     {:continue, state}
   end
 
   @impl GenServer
-  def handle_cast(:connected, {socket, {:connecting, ws_client}}) do
+  def handle_cast(:connected, {socket, {:connecting, client}}) do
     ThousandIsland.Socket.send(socket, <<5, 0, 0, 1, 0, 0, 0, 0, 0, 0>>)
-    {:noreply, {socket, {:connected, ws_client}}, socket.read_timeout}
+    {:noreply, {socket, {:connected, client}}, socket.read_timeout}
   end
 
   def handle_cast({:send, data}, {socket, state}) do

@@ -1,21 +1,12 @@
 # PpClient
 
-**TODO: Add description**
+**Port to Port VPN Client**
 
-## Installation
+## TODO
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `pp_client` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:pp_client, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/pp_client>.
-
+- [ ] Endpoint Manager page(LiveView)
+  - list endpoints
+  - add/update endpoint
+  - enable/disable
+- [ ] Profile Manager page(LiveView)
+- [ ] Condition Manager page(LiveView)

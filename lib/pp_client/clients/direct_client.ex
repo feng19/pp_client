@@ -5,7 +5,7 @@ defmodule PpClient.DirectClient do
   use GenServer
   require Logger
 
-  def start_link(_opts, target, parent) do
+  def start_link(target, parent) do
     GenServer.start_link(__MODULE__, target: target, parent: parent)
   end
 
@@ -55,12 +55,45 @@ defmodule PpClient.DirectClient do
   end
 
   defp connect(%{host: host, port: port}), do: connect(host, port, 2)
-  defp connect(_, _, 0), do: {:error, :connect_failure}
 
-  defp connect(address, port, retry_times) do
-    case :gen_tcp.connect(address, port, [:binary, {:active, false}], 5000) do
-      {:error, _error} -> connect(address, port, retry_times - 1)
-      return -> return
+  defp connect(host, port, 0) do
+    save_connect_failed_host(host, port)
+    {:error, :connect_failure}
+  end
+
+  defp connect(host, port, retry_times) do
+    case :gen_tcp.connect(host, port, [:binary, {:active, false}], 5000) do
+      {:error, _error} -> connect(host, port, retry_times - 1)
+      result -> result
+    end
+  end
+
+  defp save_connect_failed_host(host, port) do
+    failure_key = {host, port}
+    current_time = System.system_time(:second)
+
+    # Insert or update failure count atomically
+    case :ets.lookup(:connect_failed, failure_key) do
+      [{^failure_key, existing_record}] ->
+        # Update existing record with incremented count
+        updated_record = %{
+          existing_record
+          | timestamp: current_time,
+            count: existing_record.count + 1
+        }
+
+        :ets.insert(:connect_failed, {failure_key, updated_record})
+
+      [] ->
+        # Insert new failure record
+        failure_record = %{
+          timestamp: current_time,
+          host: host,
+          port: port,
+          count: 1
+        }
+
+        :ets.insert(:connect_failed, {failure_key, failure_record})
     end
   end
 end

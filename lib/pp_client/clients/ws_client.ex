@@ -6,8 +6,11 @@ defmodule PpClient.WSClient do
   @sign_secret "90de3456asxdfrtg"
   @domain 0x03
 
-  def start_link(%{servers: servers, opts: _opts}, target, parent) do
-    server = Enum.random(servers)
+  def start_link(target, %{servers: servers}, parent) do
+    start_link(target, Enum.random(servers), parent)
+  end
+
+  def start_link(target, server, parent) do
     first_frame = get_first_frame_by_type(server, target)
     headers = get_headers_by_type(server, target)
 

@@ -2,7 +2,7 @@ defmodule PpClient.Http do
   @moduledoc false
   use ThousandIsland.Handler
   require Logger
-  alias PpClient.WSClient
+  alias PpClient.AutoSwitchClient
 
   @domain 0x03
 
@@ -16,28 +16,28 @@ defmodule PpClient.Http do
   def handle_data(request, _socket, {:wait_first, opts}) do
     case parse_request(request) do
       {:ok, target, next_request} ->
-        {:ok, ws_client} = WSClient.start_link(opts, target, self())
-        {:continue, {:connecting, ws_client, next_request}}
+        {:ok, client} = AutoSwitchClient.start_link(target, opts)
+        {:continue, {:connecting, client, next_request}}
 
       _ ->
         {:close, nil}
     end
   end
 
-  def handle_data(data, _socket, {:connected, ws_client} = state) do
-    WSClient.send(ws_client, data)
+  def handle_data(data, _socket, {:connected, client} = state) do
+    AutoSwitchClient.send(client, data)
     {:continue, state}
   end
 
   @impl GenServer
-  def handle_cast(:connected, {socket, {:connecting, ws_client, next_request}}) do
+  def handle_cast(:connected, {socket, {:connecting, client, next_request}}) do
     if next_request do
-      WSClient.send(ws_client, next_request)
+      AutoSwitchClient.send(client, next_request)
     else
       ThousandIsland.Socket.send(socket, "HTTP/1.1 200 Connection Established\r\n\r\n")
     end
 
-    {:noreply, {socket, {:connected, ws_client}}, socket.read_timeout}
+    {:noreply, {socket, {:connected, client}}, socket.read_timeout}
   end
 
   def handle_cast({:send, data}, {socket, state}) do

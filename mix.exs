@@ -45,6 +45,7 @@ defmodule PpClient.MixProject do
 
   defp deps do
     [
+      {:live_debugger, "~> 0.4", only: [:dev]},
       {:tidewave, "~> 0.5", only: [:dev]},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_html, "~> 4.1"},

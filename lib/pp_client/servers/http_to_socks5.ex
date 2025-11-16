@@ -14,7 +14,7 @@ defmodule PpClient.HttpToSocks5 do
   def handle_data(request, _socket, {:wait_first, opts}) do
     case Http.parse_request(request) do
       {:ok, target, next_request} ->
-        {:ok, socks5} = Socks5Client.start_link(opts, target, self())
+        {:ok, socks5} = Socks5Client.start_link(target, opts, self())
         {:continue, {:connecting, socks5, next_request}}
 
       _ ->
