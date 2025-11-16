@@ -26,6 +26,10 @@ defmodule PpClientWeb.Router do
     live "/endpoints", EndpointLive.Index, :index
     live "/endpoints/new", EndpointLive.Index, :new
     live "/endpoints/:port/edit", EndpointLive.Index, :edit
+
+    live "/profiles", ProfileLive.Index, :index
+    live "/profiles/new", ProfileLive.Index, :new
+    live "/profiles/:name/edit", ProfileLive.Index, :edit
   end
 
   # Other scopes may use custom stacks.

@@ -1,0 +1,354 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-4 py-8">
+    <.header>
+      Profile 管理
+      <:subtitle>管理代理配置文件</:subtitle>
+      <:actions>
+        <.button navigate={~p"/admin/profiles/new"}>
+          <.icon name="hero-plus" class="size-5 mr-1" /> 新建 Profile
+        </.button>
+      </:actions>
+    </.header>
+
+    <%!-- 搜索栏 --%>
+    <div class="flex flex-col sm:flex-row gap-4 my-6">
+      <%!-- 搜索框 --%>
+      <div class="flex-1">
+        <form phx-change="search" phx-submit="search" class="relative">
+          <input
+            type="text"
+            name="search"
+            value={@search_query}
+            placeholder="搜索 Profile 名称或类型..."
+            class="input input-bordered w-full pl-10"
+            autocomplete="off"
+          />
+          <.icon
+            name="hero-magnifying-glass"
+            class="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-base-content/50"
+          />
+        </form>
+      </div>
+    </div>
+
+    <%!-- Profiles 列表 --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body p-0">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th class="w-48">名称</th>
+                <th class="w-32">类型</th>
+                <th class="w-24">服务器数量</th>
+                <th class="w-24">状态</th>
+                <th class="text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="profiles" phx-update="stream">
+              <tr :if={@profiles_empty?} id="empty-state">
+                <td colspan="5" class="text-center py-8 text-base-content/60">
+                  <%= if @search_query != "" do %>
+                    没有找到匹配的 Profile
+                  <% else %>
+                    暂无 Profile，点击上方按钮创建
+                  <% end %>
+                </td>
+              </tr>
+              <tr :for={{id, profile} <- @streams.profiles} id={id} class="hover">
+                <td class="font-semibold">{profile.name}</td>
+                <td>
+                  <span class="badge badge-outline">{type_label(profile.type)}</span>
+                </td>
+                <td>
+                  <%= if profile.type == :direct do %>
+                    <span class="text-base-content/50">-</span>
+                  <% else %>
+                    <span class="badge badge-ghost">
+                      {length(profile.servers || [])}
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <%= if profile.enabled do %>
+                    <span class="badge badge-success gap-1">
+                      <.icon name="hero-check-circle" class="size-4" /> 已启用
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost gap-1">
+                      <.icon name="hero-x-circle" class="size-4" /> 已禁用
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <%!-- 启用/禁用切换 --%>
+                    <button
+                      phx-click="toggle_enable"
+                      phx-value-name={profile.name}
+                      class="btn btn-sm btn-ghost"
+                      title={if profile.enabled, do: "禁用", else: "启用"}
+                    >
+                      <%= if profile.enabled do %>
+                        <.icon name="hero-pause" class="size-4" />
+                      <% else %>
+                        <.icon name="hero-play" class="size-4" />
+                      <% end %>
+                    </button>
+
+                    <%!-- 编辑 --%>
+                    <.button
+                      navigate={~p"/admin/profiles/#{profile.name}/edit"}
+                      class="btn btn-sm btn-ghost"
+                    >
+                      <.icon name="hero-pencil" class="size-4" />
+                    </.button>
+
+                    <%!-- 删除 --%>
+                    <button
+                      phx-click="delete_confirm"
+                      phx-value-name={profile.name}
+                      class="btn btn-sm btn-ghost text-error hover:bg-error/10"
+                      title="删除"
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- 表单模态框 --%>
+    <%= if @live_action in [:new, :edit] do %>
+      <div class="modal modal-open">
+        <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
+          <h3 class="font-bold text-lg mb-4">
+            {if @live_action == :new, do: "新建 Profile", else: "编辑 Profile"}
+          </h3>
+
+          <.form
+            for={@form}
+            id="profile-form"
+            phx-change="validate"
+            phx-submit="save"
+          >
+            <.input
+              field={@form[:name]}
+              type="text"
+              label="名称"
+              placeholder="my-profile"
+              required
+            />
+
+            <.input
+              field={@form[:type]}
+              type="select"
+              label="类型"
+              options={[
+                {"直连", :direct},
+                {"远程代理", :remote}
+              ]}
+              required
+            />
+
+            <.input
+              field={@form[:enabled]}
+              type="checkbox"
+              label="启用"
+            />
+
+            <%!-- 服务器配置（仅远程代理类型） --%>
+            <%= if @form[:type].value == :remote || @form[:type].value == "remote" do %>
+              <div class="divider">服务器配置</div>
+
+              <div class="space-y-4">
+                <%= for {index, server_data} <- @server_forms do %>
+                  <div class="card bg-base-200 p-4">
+                    <div class="flex justify-between items-center mb-3">
+                      <h4 class="font-semibold">服务器 #{index + 1}</h4>
+                      <button
+                        type="button"
+                        phx-click="remove_server"
+                        phx-value-index={index}
+                        class="btn btn-sm btn-ghost btn-circle text-error"
+                      >
+                        <.icon name="hero-x-mark" class="size-5" />
+                      </button>
+                    </div>
+
+                    <input
+                      type="hidden"
+                      name={"profile_schema[servers][#{index}][_index]"}
+                      value={index}
+                    />
+
+                    <.input
+                      name={"profile_schema[servers][#{index}][type]"}
+                      id={"profile_schema_servers_#{index}_type"}
+                      value={server_data["type"]}
+                      type="select"
+                      label="服务器类型"
+                      options={[
+                        {"EXPS", "exps"},
+                        {"CF Workers", "cf-workers"},
+                        {"SOCKS5", "socks5"}
+                      ]}
+                      required
+                    />
+
+                    <.input
+                      name={"profile_schema[servers][#{index}][enable]"}
+                      id={"profile_schema_servers_#{index}_enable"}
+                      value={server_data["enable"]}
+                      type="checkbox"
+                      label="启用此服务器"
+                    />
+
+                    <%!-- EXPS 配置 --%>
+                    <%= if server_data["type"] == "exps" do %>
+                      <.input
+                        name={"profile_schema[servers][#{index}][uri]"}
+                        id={"profile_schema_servers_#{index}_uri"}
+                        value={server_data["uri"]}
+                        type="text"
+                        label="WebSocket URI"
+                        placeholder="wss://example.com/ws"
+                        required
+                      />
+
+                      <.input
+                        name={"profile_schema[servers][#{index}][encrypt_type]"}
+                        id={"profile_schema_servers_#{index}_encrypt_type"}
+                        value={server_data["encrypt_type"] || "none"}
+                        type="select"
+                        label="加密类型"
+                        options={[
+                          {"无加密", "none"},
+                          {"一次加密", "once"}
+                        ]}
+                      />
+
+                      <.input
+                        name={"profile_schema[servers][#{index}][encrypt_key]"}
+                        id={"profile_schema_servers_#{index}_encrypt_key"}
+                        value={server_data["encrypt_key"]}
+                        type="text"
+                        label="加密密钥（可选）"
+                        placeholder="encryption-key"
+                      />
+                    <% end %>
+
+                    <%!-- CF Workers 配置 --%>
+                    <%= if server_data["type"] == "cf-workers" do %>
+                      <.input
+                        name={"profile_schema[servers][#{index}][uri]"}
+                        id={"profile_schema_servers_#{index}_uri"}
+                        value={server_data["uri"]}
+                        type="text"
+                        label="WebSocket URI"
+                        placeholder="wss://worker.example.com"
+                        required
+                      />
+
+                      <.input
+                        name={"profile_schema[servers][#{index}][password]"}
+                        id={"profile_schema_servers_#{index}_password"}
+                        value={server_data["password"]}
+                        type="password"
+                        label="密码"
+                        placeholder="password"
+                        required
+                      />
+                    <% end %>
+
+                    <%!-- SOCKS5 配置 --%>
+                    <%= if server_data["type"] == "socks5" do %>
+                      <.input
+                        name={"profile_schema[servers][#{index}][host]"}
+                        id={"profile_schema_servers_#{index}_host"}
+                        value={server_data["host"]}
+                        type="text"
+                        label="主机地址"
+                        placeholder="127.0.0.1"
+                        required
+                      />
+
+                      <.input
+                        name={"profile_schema[servers][#{index}][port]"}
+                        id={"profile_schema_servers_#{index}_port"}
+                        value={server_data["port"]}
+                        type="number"
+                        label="端口"
+                        placeholder="1080"
+                        required
+                      />
+                    <% end %>
+                  </div>
+                <% end %>
+
+                <button
+                  type="button"
+                  phx-click="add_server"
+                  class="btn btn-outline btn-block"
+                >
+                  <.icon name="hero-plus" class="size-5" /> 添加服务器
+                </button>
+              </div>
+            <% end %>
+
+            <div class="modal-action">
+              <.button
+                type="button"
+                navigate={~p"/admin/profiles"}
+                class="btn btn-ghost"
+              >
+                取消
+              </.button>
+              <.button type="submit" variant="primary">
+                保存
+              </.button>
+            </div>
+          </.form>
+        </div>
+        <label class="modal-backdrop" phx-click={JS.navigate(~p"/admin/profiles")}>
+          Close
+        </label>
+      </div>
+    <% end %>
+
+    <%!-- 删除确认对话框 --%>
+    <%= if @delete_name do %>
+      <div class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4">确认删除</h3>
+          <p class="py-4">
+            确定要删除 Profile <span class="font-bold">{@delete_name}</span> 吗？
+          </p>
+          <p class="text-sm text-warning">
+            <.icon name="hero-exclamation-triangle" class="size-4 inline" /> 此操作将删除该配置文件。
+          </p>
+          <div class="modal-action">
+            <button
+              phx-click="delete_cancel"
+              class="btn btn-ghost"
+            >
+              取消
+            </button>
+            <button
+              phx-click="delete"
+              phx-value-name={@delete_name}
+              class="btn btn-error"
+            >
+              确认删除
+            </button>
+          </div>
+        </div>
+        <label class="modal-backdrop" phx-click="delete_cancel">Close</label>
+      </div>
+    <% end %>
+  </div>
+</Layouts.app>

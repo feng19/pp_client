@@ -45,8 +45,13 @@ defmodule PpClientWeb.Layouts do
       <div class="flex-none">
         <ul class="menu menu-horizontal px-1 gap-2">
           <li>
-            <.link navigate={~p"/admin/endpoints"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-server" class="size-4" /> Endpoints
+            <.link navigate={~p"/admin/endpoints"} class="btn btn-ghost btn-xl">
+              <.icon name="hero-server" class="size-6" /> Endpoints
+            </.link>
+          </li>
+          <li>
+            <.link navigate={~p"/admin/profiles"} class="btn btn-ghost btn-xl">
+              <.icon name="hero-server" class="size-6" /> Profiles
             </.link>
           </li>
           <li>

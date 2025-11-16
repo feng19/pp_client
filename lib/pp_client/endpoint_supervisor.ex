@@ -1,6 +1,13 @@
 defmodule PpClient.EndpointSupervisor do
   use Supervisor
+  require Logger
   alias PpClient.Endpoint
+
+  if Mix.env() == :test do
+    @config_filename "pp_config_.exs"
+  else
+    @config_filename "pp_config_test.exs"
+  end
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
@@ -12,20 +19,15 @@ defmodule PpClient.EndpointSupervisor do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
-  if Mix.env() == :test do
-    defp load_endpoints_from_config, do: []
-  else
-    defp load_endpoints_from_config do
-      #      if File.exists?("pp_config.exs") do
-      #        {endpoints, _} = Code.eval_file("pp_config.exs")
-      #        endpoints
-      #      else
-      #        Logger.warning("NOT found the pp_config.exs")
-      #        []
-      #      end
-      #      |> child_specs()
+  defp load_endpoints_from_config do
+    if File.exists?(@config_filename) do
+      {endpoints, _} = Code.eval_file(@config_filename)
+      endpoints
+    else
+      Logger.warning("NOT found the pp_config.exs")
       []
     end
+    |> child_specs()
   end
 
   defp child_specs(endpoints) do
