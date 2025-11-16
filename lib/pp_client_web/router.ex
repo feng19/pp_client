@@ -20,6 +20,14 @@ defmodule PpClientWeb.Router do
     get "/", PageController, :home
   end
 
+  scope "/admin", PpClientWeb do
+    pipe_through :browser
+
+    live "/endpoints", EndpointLive.Index, :index
+    live "/endpoints/new", EndpointLive.Index, :new
+    live "/endpoints/:port/edit", EndpointLive.Index, :edit
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", PpClientWeb do
   #   pipe_through :api

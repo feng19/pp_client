@@ -67,7 +67,9 @@ defmodule PpClient.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:wind, "~> 0.3"},
-      {:burrito, "~> 1.0"}
+      {:burrito, "~> 1.0"},
+      {:ecto, "~> 3.11"},
+      {:phoenix_ecto, "~> 4.6"}
     ]
   end
 

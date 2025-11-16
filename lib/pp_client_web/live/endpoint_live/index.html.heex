@@ -1,0 +1,280 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-4 py-8">
+    <.header>
+      Endpoint 管理
+      <:subtitle>管理代理服务端点配置</:subtitle>
+      <:actions>
+        <.button navigate={~p"/admin/endpoints/new"}>
+          <.icon name="hero-plus" class="size-5 mr-1" /> 新建 Endpoint
+        </.button>
+      </:actions>
+    </.header>
+
+    <%!-- 搜索和筛选栏 --%>
+    <div class="flex flex-col sm:flex-row gap-4 my-6">
+      <%!-- 搜索框 --%>
+      <div class="flex-1">
+        <form phx-change="search" phx-submit="search" class="relative">
+          <input
+            type="text"
+            name="search"
+            value={@search_query}
+            placeholder="搜索端口或类型..."
+            class="input input-bordered w-full pl-10"
+            autocomplete="off"
+          />
+          <.icon
+            name="hero-magnifying-glass"
+            class="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-base-content/50"
+          />
+        </form>
+      </div>
+
+      <%!-- 状态筛选 --%>
+      <div class="flex gap-2">
+        <button
+          phx-click="filter"
+          phx-value-status="all"
+          class={[
+            "btn btn-sm",
+            @filter_status == "all" && "btn-primary",
+            @filter_status != "all" && "btn-ghost"
+          ]}
+        >
+          全部
+        </button>
+        <button
+          phx-click="filter"
+          phx-value-status="enabled"
+          class={[
+            "btn btn-sm",
+            @filter_status == "enabled" && "btn-primary",
+            @filter_status != "enabled" && "btn-ghost"
+          ]}
+        >
+          已启用
+        </button>
+        <button
+          phx-click="filter"
+          phx-value-status="disabled"
+          class={[
+            "btn btn-sm",
+            @filter_status == "disabled" && "btn-primary",
+            @filter_status != "disabled" && "btn-ghost"
+          ]}
+        >
+          已禁用
+        </button>
+      </div>
+    </div>
+
+    <%!-- Endpoints 列表 --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body p-0">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th class="w-20">端口</th>
+                <th class="w-32">类型</th>
+                <th class="w-32">IP 地址</th>
+                <th class="w-24">状态</th>
+                <th class="w-24">运行状态</th>
+                <th class="text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="endpoints" phx-update="stream">
+              <tr :if={@endpoints_empty?} id="empty-state">
+                <td colspan="6" class="text-center py-8 text-base-content/60">
+                  <%= if @search_query != "" || @filter_status != "all" do %>
+                    没有找到匹配的 Endpoint
+                  <% else %>
+                    暂无 Endpoint，点击上方按钮创建
+                  <% end %>
+                </td>
+              </tr>
+              <tr :for={{id, endpoint} <- @streams.endpoints} id={id} class="hover">
+                <td class="font-mono font-semibold">{endpoint.port}</td>
+                <td>
+                  <span class="badge badge-outline">{type_label(endpoint.type)}</span>
+                </td>
+                <td class="font-mono text-sm">{format_ip(endpoint.ip)}</td>
+                <td>
+                  <%= if endpoint.enable do %>
+                    <span class="badge badge-success gap-1">
+                      <.icon name="hero-check-circle" class="size-4" /> 已启用
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost gap-1">
+                      <.icon name="hero-x-circle" class="size-4" /> 已禁用
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <%= if running?(endpoint) do %>
+                    <span class="badge badge-info gap-1">
+                      <span class="inline-block size-2 rounded-full bg-info-content animate-pulse">
+                      </span>
+                      运行中
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost gap-1">
+                      <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
+                      已停止
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <%!-- 启用/禁用切换 --%>
+                    <button
+                      phx-click="toggle_enable"
+                      phx-value-port={endpoint.port}
+                      class="btn btn-sm btn-ghost"
+                      title={if endpoint.enable, do: "禁用", else: "启用"}
+                    >
+                      <%= if endpoint.enable do %>
+                        <.icon name="hero-pause" class="size-4" />
+                      <% else %>
+                        <.icon name="hero-play" class="size-4" />
+                      <% end %>
+                    </button>
+
+                    <%!-- 重启 --%>
+                    <button
+                      :if={endpoint.enable && running?(endpoint)}
+                      phx-click="restart"
+                      phx-value-port={endpoint.port}
+                      class="btn btn-sm btn-ghost"
+                      title="重启"
+                    >
+                      <.icon name="hero-arrow-path" class="size-4" />
+                    </button>
+
+                    <%!-- 编辑 --%>
+                    <.button
+                      navigate={~p"/admin/endpoints/#{endpoint.port}/edit"}
+                      class="btn btn-sm btn-ghost"
+                    >
+                      <.icon name="hero-pencil" class="size-4" />
+                    </.button>
+
+                    <%!-- 删除 --%>
+                    <button
+                      phx-click="delete_confirm"
+                      phx-value-port={endpoint.port}
+                      class="btn btn-sm btn-ghost text-error hover:bg-error/10"
+                      title="删除"
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- 表单模态框 --%>
+    <%= if @live_action in [:new, :edit] do %>
+      <div class="modal modal-open">
+        <div class="modal-box max-w-2xl">
+          <h3 class="font-bold text-lg mb-4">
+            {if @live_action == :new, do: "新建 Endpoint", else: "编辑 Endpoint"}
+          </h3>
+
+          <.form
+            for={@form}
+            id="endpoint-form"
+            phx-change="validate"
+            phx-submit="save"
+          >
+            <.input
+              field={@form[:port]}
+              type="number"
+              label="端口"
+              placeholder="1080"
+              required
+            />
+
+            <.input
+              field={@form[:type]}
+              type="select"
+              label="类型"
+              options={[
+                {"SOCKS5", :socks5},
+                {"HTTP", :http},
+                {"自动检测", :auto},
+                {"HTTP → SOCKS5", :http_to_socks5}
+              ]}
+              required
+            />
+
+            <.input
+              field={@form[:ip]}
+              type="text"
+              label="IP 地址"
+              placeholder="127.0.0.1"
+              required
+            />
+
+            <.input
+              field={@form[:enable]}
+              type="checkbox"
+              label="启用"
+            />
+
+            <div class="modal-action">
+              <.button
+                type="button"
+                navigate={~p"/admin/endpoints"}
+                class="btn btn-ghost"
+              >
+                取消
+              </.button>
+              <.button type="submit" variant="primary">
+                保存
+              </.button>
+            </div>
+          </.form>
+        </div>
+        <label class="modal-backdrop" phx-click={JS.navigate(~p"/admin/endpoints")}>
+          Close
+        </label>
+      </div>
+    <% end %>
+
+    <%!-- 删除确认对话框 --%>
+    <%= if @delete_port do %>
+      <div class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4">确认删除</h3>
+          <p class="py-4">
+            确定要删除端口 <span class="font-mono font-bold">{@delete_port}</span> 的 Endpoint 吗？
+          </p>
+          <p class="text-sm text-warning">
+            <.icon name="hero-exclamation-triangle" class="size-4 inline" /> 此操作将停止该端点的服务并删除配置。
+          </p>
+          <div class="modal-action">
+            <button
+              phx-click="delete_cancel"
+              class="btn btn-ghost"
+            >
+              取消
+            </button>
+            <button
+              phx-click="delete"
+              phx-value-port={@delete_port}
+              class="btn btn-error"
+            >
+              确认删除
+            </button>
+          </div>
+        </div>
+        <label class="modal-backdrop" phx-click="delete_cancel">Close</label>
+      </div>
+    <% end %>
+  </div>
+</Layouts.app>

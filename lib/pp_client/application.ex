@@ -14,10 +14,11 @@ defmodule PpClient.Application do
       {Phoenix.PubSub, name: PpClient.PubSub},
       PpClient.ProfileManager,
       PpClient.ConditionManager,
+      PpClient.EndpointManager,
       PpClient.Cache,
       # Start to serve requests, typically the last entry
       PpClientWeb.Endpoint,
-      PpClient.EndpointManager
+      PpClient.EndpointSupervisor
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: @supervisor)
