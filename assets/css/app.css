@@ -102,4 +102,48 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  /* Improve touch targets on mobile */
+  .btn {
+    min-height: 2.5rem;
+  }
+  
+  /* Better spacing for mobile cards */
+  .card-body {
+    padding: 1rem;
+  }
+  
+  /* Optimize modal for mobile */
+  .modal-box {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+  }
+  
+  /* Better table overflow handling */
+  .table {
+    font-size: 0.875rem;
+  }
+  
+  /* Improve form inputs on mobile */
+  .input, .select, .textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Improve scrolling on mobile */
+@media (max-width: 768px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Better badge sizing on mobile */
+@media (max-width: 640px) {
+  .badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
 /* This file is for your main application CSS */

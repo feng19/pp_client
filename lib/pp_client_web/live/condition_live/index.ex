@@ -19,7 +19,8 @@ defmodule PpClientWeb.ConditionLive.Index do
       |> assign(:filter_status, "all")
       |> assign(:filter_profile, "all")
       |> assign(:conditions_empty?, false)
-      |> assign(:form, nil)
+      |> assign(:editing_id, nil)
+      |> assign(:show_new_form, false)
       |> assign(:delete_id, nil)
       |> assign(:available_profiles, [])
       |> assign(:connect_failed_hosts, [])
@@ -33,44 +34,8 @@ defmodule PpClientWeb.ConditionLive.Index do
   end
 
   @impl true
-  def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
-  end
-
-  defp apply_action(socket, :index, _params) do
-    socket
-    |> assign(:page_title, "Condition 管理")
-    |> assign(:form, nil)
-  end
-
-  defp apply_action(socket, :new, _params) do
-    default_attrs = %{pattern: "*.example.com"}
-    changeset = ConditionSchema.changeset(%ConditionSchema{}, default_attrs)
-
-    socket
-    |> assign(:page_title, "新建 Condition")
-    |> assign(:form, to_form(changeset))
-    |> assign(:editing_id, nil)
-  end
-
-  defp apply_action(socket, :edit, %{"id" => id}) do
-    id = String.to_integer(id)
-
-    case ConditionManager.get_condition(id) do
-      {:ok, condition} ->
-        schema = ConditionSchema.from_condition(condition)
-        changeset = ConditionSchema.changeset(schema, %{})
-
-        socket
-        |> assign(:page_title, "编辑 Condition")
-        |> assign(:form, to_form(changeset))
-        |> assign(:editing_id, id)
-
-      {:error, :not_found} ->
-        socket
-        |> put_flash(:error, "Condition 不存在")
-        |> push_navigate(to: ~p"/admin/conditions")
-    end
+  def handle_params(_params, _url, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -101,38 +66,126 @@ defmodule PpClientWeb.ConditionLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event("validate", %{"condition_schema" => params}, socket) do
-    changeset =
-      %ConditionSchema{}
-      |> ConditionSchema.changeset(params)
-      |> Map.put(:action, :validate)
+  def handle_event("show_new_form", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_new_form, true)
+      |> assign(:editing_id, nil)
 
-    {:noreply, assign(socket, :form, to_form(changeset))}
+    {:noreply, socket}
   end
 
-  def handle_event("save", %{"condition_schema" => params}, socket) do
-    changeset = ConditionSchema.changeset(%ConditionSchema{}, params)
+  def handle_event("cancel_new", _params, socket) do
+    {:noreply, assign(socket, :show_new_form, false)}
+  end
+
+  def handle_event("save_new", params, socket) do
+    condition_params = %{
+      "pattern" => params["pattern"],
+      "profile_name" => params["profile_name"],
+      "enabled" => params["enabled"] == "true"
+    }
+
+    changeset = ConditionSchema.changeset(%ConditionSchema{}, condition_params)
 
     case Ecto.Changeset.apply_action(changeset, :insert) do
       {:ok, schema} ->
         condition = ConditionSchema.to_condition(schema)
 
-        case save_condition(socket, condition) do
+        case ConditionManager.add_condition(condition) do
+          {:ok, _} ->
+            # 创建成功后，检查并清除匹配的失败记录
+            clear_matching_failed_hosts(condition)
+
+            socket =
+              socket
+              |> put_flash(:info, "Condition 创建成功")
+              |> assign(:show_new_form, false)
+              |> load_conditions()
+
+            broadcast_change()
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+        end
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "输入数据无效")}
+    end
+  end
+
+  def handle_event("start_edit", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+
+    case ConditionManager.get_condition(id) do
+      {:ok, condition} ->
+        socket =
+          socket
+          |> assign(editing_id: id, show_new_form: false)
+          |> stream_insert(:conditions, condition)
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Condition 不存在")}
+    end
+  end
+
+  def handle_event("cancel_edit", _params, socket) do
+    case socket.assigns.editing_id do
+      nil ->
+        {:noreply, socket}
+
+      id ->
+        case ConditionManager.get_condition(id) do
+          {:ok, condition} ->
+            socket =
+              socket
+              |> assign(:editing_id, nil)
+              |> stream_insert(:conditions, condition)
+
+            {:noreply, socket}
+
+          {:error, _} ->
+            {:noreply, assign(socket, :editing_id, nil)}
+        end
+    end
+  end
+
+  def handle_event("save_edit", %{"condition_id" => id_str} = params, socket) do
+    id = String.to_integer(id_str)
+
+    condition_params = %{
+      "pattern" => params["pattern"],
+      "profile_name" => params["profile_name"],
+      "enabled" => params["enabled"] == "true"
+    }
+
+    changeset = ConditionSchema.changeset(%ConditionSchema{}, condition_params)
+
+    case Ecto.Changeset.apply_action(changeset, :insert) do
+      {:ok, schema} ->
+        condition = ConditionSchema.to_condition(schema)
+        condition = Map.put(condition, :id, id)
+
+        case ConditionManager.update_condition(condition) do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Condition 保存成功")
-              |> push_navigate(to: ~p"/admin/conditions")
+              |> put_flash(:info, "Condition 更新成功")
+              |> assign(:editing_id, nil)
               |> load_conditions()
 
+            broadcast_change()
             {:noreply, socket}
 
           {:error, reason} ->
             {:noreply, put_flash(socket, :error, "保存失败: #{inspect(reason)}")}
         end
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, form: to_form(changeset))}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "输入数据无效")}
     end
   end
 
@@ -203,50 +256,53 @@ defmodule PpClientWeb.ConditionLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event("create_from_failed", %{"host" => host, "port" => port_str}, socket) do
-    port = String.to_integer(port_str)
-    host_str = to_string(host)
+  def handle_event(
+        "create_from_failed_form",
+        %{
+          "pattern" => pattern,
+          "profile" => profile_name,
+          "original-host" => original_host,
+          "original-port" => original_port_str
+        },
+        socket
+      ) do
+    original_port = String.to_integer(original_port_str)
 
-    # 创建匹配模式，使用主机名
-    pattern = "*.#{host_str}"
+    # 验证 profile 是否选择
+    if profile_name == "" do
+      {:noreply, put_flash(socket, :error, "请选择一个 Profile")}
+    else
+      # 创建 condition
+      condition = %PpClient.Condition{
+        condition: :all,
+        profile_name: profile_name,
+        enabled: true
+      }
 
-    # 获取第一个可用的 profile，如果没有则提示用户
-    case socket.assigns.available_profiles do
-      [] ->
-        {:noreply, put_flash(socket, :error, "请先创建至少一个 Profile")}
-
-      [first_profile | _] ->
-        # 创建 condition
-        condition = %PpClient.Condition{
-          condition: :all,
-          profile_name: first_profile,
-          enabled: true
-        }
-
-        # 尝试将 pattern 转换为 regex
-        condition =
-          case PpClient.Condition.pattern_to_regex(pattern) do
-            {:ok, regex} -> %{condition | condition: regex}
-            {:error, _} -> condition
-          end
-
-        case ConditionManager.add_condition(condition) do
-          {:ok, _} ->
-            # 清除该失败记录
-            ConditionManager.clear_connect_failed(host, port)
-
-            socket =
-              socket
-              |> put_flash(:info, "已从 #{host_str}:#{port} 创建 Condition")
-              |> load_conditions()
-              |> load_connect_failed_hosts()
-
-            broadcast_change()
-            {:noreply, socket}
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+      # 尝试将 pattern 转换为 regex
+      condition =
+        case PpClient.Condition.pattern_to_regex(pattern) do
+          {:ok, regex} -> %{condition | condition: regex}
+          {:error, _} -> condition
         end
+
+      case ConditionManager.add_condition(condition) do
+        {:ok, _} ->
+          # 清除该失败记录
+          ConditionManager.clear_connect_failed(original_host, original_port)
+
+          socket =
+            socket
+            |> put_flash(:info, "已创建 Condition: #{pattern} → #{profile_name}")
+            |> load_conditions()
+            |> load_connect_failed_hosts()
+
+          broadcast_change()
+          {:noreply, socket}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+      end
     end
   end
 
@@ -276,6 +332,16 @@ defmodule PpClientWeb.ConditionLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("refresh_cache", _params, socket) do
+    PpClient.Cache.refresh()
+
+    socket =
+      socket
+      |> put_flash(:info, "缓存已刷新")
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info({:condition_updated, _condition}, socket) do
     {:noreply, load_conditions(socket)}
@@ -285,21 +351,30 @@ defmodule PpClientWeb.ConditionLive.Index do
     {:noreply, load_profiles(socket)}
   end
 
-  defp save_condition(socket, condition) do
-    editing_id = Map.get(socket.assigns, :editing_id)
+  defp clear_matching_failed_hosts(condition) do
+    # 获取所有失败的主机
+    failed_hosts = ConditionManager.get_connect_failed_hosts()
 
-    if editing_id do
-      # 编辑现有 condition
-      condition = Map.put(condition, :id, editing_id)
-      result = ConditionManager.update_condition(condition)
-      broadcast_change()
-      result
-    else
-      # 创建新 condition
-      result = ConditionManager.add_condition(condition)
-      broadcast_change()
-      result
-    end
+    # 检查每个失败主机是否匹配新创建的 condition
+    Enum.each(failed_hosts, fn host ->
+      host_str = to_string(host.host)
+
+      matches =
+        case condition.condition do
+          :all ->
+            true
+
+          %Regex{} = regex ->
+            String.match?(host_str, regex)
+
+          _ ->
+            false
+        end
+
+      if matches do
+        ConditionManager.clear_connect_failed(host.host, host.port)
+      end
+    end)
   end
 
   defp load_conditions(socket) do

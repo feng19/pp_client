@@ -16,8 +16,9 @@ defmodule PpClientWeb.EndpointLive.Index do
       |> assign(:search_query, "")
       |> assign(:filter_status, "all")
       |> assign(:endpoints_empty?, false)
-      |> assign(:form, nil)
+      |> assign(:editing_port, nil)
       |> assign(:delete_port, nil)
+      |> assign(:show_new_form, false)
       |> stream_configure(:endpoints, dom_id: fn endpoint -> "endpoint-#{endpoint.port}" end)
       |> load_endpoints()
 
@@ -25,50 +26,8 @@ defmodule PpClientWeb.EndpointLive.Index do
   end
 
   @impl true
-  def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
-  end
-
-  defp apply_action(socket, :index, _params) do
-    socket
-    |> assign(:page_title, "Endpoint 管理")
-    |> assign(:form, nil)
-  end
-
-  defp apply_action(socket, :new, _params) do
-    # 提供默认值
-    default_attrs = %{
-      port: 1080,
-      type: :socks5,
-      ip: "127.0.0.1",
-      enable: true
-    }
-
-    changeset = EndpointSchema.changeset(%EndpointSchema{}, default_attrs)
-
-    socket
-    |> assign(:page_title, "新建 Endpoint")
-    |> assign(:form, to_form(changeset))
-  end
-
-  defp apply_action(socket, :edit, %{"port" => port}) do
-    port = String.to_integer(port)
-
-    case EndpointManager.get_endpoint(port) do
-      {:ok, endpoint} ->
-        schema = EndpointSchema.from_endpoint(endpoint)
-        changeset = EndpointSchema.changeset(schema, %{})
-
-        socket
-        |> assign(:page_title, "编辑 Endpoint")
-        |> assign(:form, to_form(changeset))
-        |> assign(:editing_port, port)
-
-      {:error, :not_found} ->
-        socket
-        |> put_flash(:error, "Endpoint 不存在")
-        |> push_navigate(to: ~p"/admin/endpoints")
-    end
+  def handle_params(_params, _url, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -90,29 +49,133 @@ defmodule PpClientWeb.EndpointLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event("validate", %{"endpoint_schema" => params}, socket) do
-    changeset =
-      %EndpointSchema{}
-      |> EndpointSchema.changeset(params)
-      |> Map.put(:action, :validate)
+  def handle_event("show_new_form", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_new_form, true)
+      |> assign(:editing_port, nil)
 
-    {:noreply, assign(socket, form: to_form(changeset))}
+    {:noreply, socket}
   end
 
-  def handle_event("save", %{"endpoint_schema" => params}, socket) do
-    changeset = EndpointSchema.changeset(%EndpointSchema{}, params)
+  def handle_event("cancel_new", _params, socket) do
+    {:noreply, assign(socket, :show_new_form, false)}
+  end
+
+  def handle_event("save_new", params, socket) do
+    # 构建参数
+    endpoint_params = %{
+      "port" => params["port"],
+      "type" => params["type"],
+      "ip" => params["ip"],
+      "enable" => params["enable"] == "true"
+    }
+
+    changeset = EndpointSchema.changeset(%EndpointSchema{}, endpoint_params)
 
     case Ecto.Changeset.apply_action(changeset, :insert) do
       {:ok, schema} ->
         endpoint = EndpointSchema.to_endpoint(schema)
 
-        case save_endpoint(socket, endpoint) do
+        case save_new_endpoint(endpoint) do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Endpoint 保存成功")
-              |> push_navigate(to: ~p"/admin/endpoints")
+              |> put_flash(:info, "Endpoint 创建成功")
+              |> assign(:show_new_form, false)
               |> load_endpoints()
+
+            broadcast_change()
+            {:noreply, socket}
+
+          {:error, :port_already_exists} ->
+            socket =
+              socket
+              |> put_flash(:error, "端口已被占用")
+
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+        end
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "输入数据无效")}
+    end
+  end
+
+  def handle_event("start_edit", %{"port" => port}, socket) do
+    port = String.to_integer(port)
+
+    # 获取endpoint并重新插入stream以触发重新渲染
+    case EndpointManager.get_endpoint(port) do
+      {:ok, endpoint} ->
+        socket =
+          socket
+          |> assign(editing_port: port, show_new_form: false)
+          |> stream_insert(:endpoints, endpoint)
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Endpoint 不存在")}
+    end
+  end
+
+  def handle_event("cancel_edit", _params, socket) do
+    # 获取正在编辑的endpoint并重新插入stream以触发重新渲染
+    case socket.assigns.editing_port do
+      nil ->
+        {:noreply, socket}
+
+      port ->
+        case EndpointManager.get_endpoint(port) do
+          {:ok, endpoint} ->
+            socket =
+              socket
+              |> assign(:editing_port, nil)
+              |> stream_insert(:endpoints, endpoint)
+
+            {:noreply, socket}
+
+          {:error, _} ->
+            {:noreply, assign(socket, :editing_port, nil)}
+        end
+    end
+  end
+
+  def handle_event("save_edit", %{"port" => port_str} = params, socket) do
+    original_port = String.to_integer(port_str)
+
+    # 构建参数
+    endpoint_params = %{
+      "port" => params["new_port"],
+      "type" => params["type"],
+      "ip" => params["ip"],
+      "enable" => params["enable"] == "true"
+    }
+
+    changeset = EndpointSchema.changeset(%EndpointSchema{}, endpoint_params)
+
+    case Ecto.Changeset.apply_action(changeset, :insert) do
+      {:ok, schema} ->
+        endpoint = EndpointSchema.to_endpoint(schema)
+
+        case save_endpoint_edit(original_port, endpoint) do
+          {:ok, _} ->
+            socket =
+              socket
+              |> put_flash(:info, "Endpoint 更新成功")
+              |> assign(:editing_port, nil)
+              |> load_endpoints()
+
+            broadcast_change()
+            {:noreply, socket}
+
+          {:error, :port_already_exists} ->
+            socket =
+              socket
+              |> put_flash(:error, "端口已被占用")
 
             {:noreply, socket}
 
@@ -120,8 +183,8 @@ defmodule PpClientWeb.EndpointLive.Index do
             {:noreply, put_flash(socket, :error, "保存失败: #{inspect(reason)}")}
         end
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, form: to_form(changeset))}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "输入数据无效")}
     end
   end
 
@@ -220,20 +283,48 @@ defmodule PpClientWeb.EndpointLive.Index do
     {:noreply, load_endpoints(socket)}
   end
 
-  defp save_endpoint(socket, endpoint) do
-    editing_port = Map.get(socket.assigns, :editing_port)
+  defp save_new_endpoint(endpoint) do
+    # 创建新 endpoint
+    if EndpointManager.exists?(endpoint.port) do
+      {:error, :port_already_exists}
+    else
+      result =
+        if endpoint.enable do
+          EndpointManager.start(endpoint)
+        else
+          :ets.insert(:endpoints, {endpoint.port, endpoint})
+          {:ok, nil}
+        end
 
-    if editing_port do
-      # 编辑现有 endpoint
-      case EndpointManager.get_endpoint(editing_port) do
-        {:ok, old_endpoint} ->
-          # 如果端口改变了，需要先停止旧的
-          if old_endpoint.port != endpoint.port do
-            EndpointManager.stop(old_endpoint)
-            :ets.delete(:endpoints, old_endpoint.port)
+      result
+    end
+  end
+
+  defp save_endpoint_edit(original_port, endpoint) do
+    # 编辑现有 endpoint
+    case EndpointManager.get_endpoint(original_port) do
+      {:ok, old_endpoint} ->
+        # 如果端口改变了，需要先停止旧的
+        if old_endpoint.port != endpoint.port do
+          # 检查新端口是否已存在
+          if EndpointManager.exists?(endpoint.port) do
+            {:error, :port_already_exists}
           else
             EndpointManager.stop(old_endpoint)
+            :ets.delete(:endpoints, old_endpoint.port)
+
+            result =
+              if endpoint.enable do
+                EndpointManager.start(endpoint)
+              else
+                :ets.insert(:endpoints, {endpoint.port, endpoint})
+                {:ok, nil}
+              end
+
+            result
           end
+        else
+          EndpointManager.stop(old_endpoint)
 
           result =
             if endpoint.enable do
@@ -243,28 +334,11 @@ defmodule PpClientWeb.EndpointLive.Index do
               {:ok, nil}
             end
 
-          broadcast_change()
           result
+        end
 
-        {:error, _} = error ->
-          error
-      end
-    else
-      # 创建新 endpoint
-      if EndpointManager.exists?(endpoint.port) do
-        {:error, :port_already_exists}
-      else
-        result =
-          if endpoint.enable do
-            EndpointManager.start(endpoint)
-          else
-            :ets.insert(:endpoints, {endpoint.port, endpoint})
-            {:ok, nil}
-          end
-
-        broadcast_change()
-        result
-      end
+      {:error, _} = error ->
+        error
     end
   end
 

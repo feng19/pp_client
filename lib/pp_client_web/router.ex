@@ -24,16 +24,12 @@ defmodule PpClientWeb.Router do
     pipe_through :browser
 
     live "/endpoints", EndpointLive.Index, :index
-    live "/endpoints/new", EndpointLive.Index, :new
-    live "/endpoints/:port/edit", EndpointLive.Index, :edit
 
     live "/profiles", ProfileLive.Index, :index
     live "/profiles/new", ProfileLive.Index, :new
     live "/profiles/:name/edit", ProfileLive.Index, :edit
 
     live "/conditions", ConditionLive.Index, :index
-    live "/conditions/new", ConditionLive.Index, :new
-    live "/conditions/:id/edit", ConditionLive.Index, :edit
   end
 
   # Other scopes may use custom stacks.

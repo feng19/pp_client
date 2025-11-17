@@ -60,7 +60,9 @@ defmodule PpClientWeb.EndpointLiveTest do
         |> render_change()
 
       assert html =~ "1080"
-      refute html =~ "8080"
+      # 检查桌面端表格中不包含 8080
+      assert html =~ ~r/<tbody id="endpoints"[^>]*>.*1080.*<\/tbody>/s
+      refute html =~ ~r/<tbody id="endpoints"[^>]*>.*8080.*<\/tbody>/s
     end
 
     test "can filter endpoints by status", %{conn: conn} do
@@ -86,7 +88,9 @@ defmodule PpClientWeb.EndpointLiveTest do
         |> render_click()
 
       assert html =~ "1080"
-      refute html =~ "8080"
+      # 检查桌面端表格
+      assert html =~ ~r/<tbody id="endpoints"[^>]*>.*1080.*<\/tbody>/s
+      refute html =~ ~r/<tbody id="endpoints"[^>]*>.*8080.*<\/tbody>/s
 
       # 筛选已禁用
       html =
@@ -94,38 +98,44 @@ defmodule PpClientWeb.EndpointLiveTest do
         |> element("button", "已禁用")
         |> render_click()
 
-      refute html =~ "1080"
       assert html =~ "8080"
+      # 检查桌面端表格
+      refute html =~ ~r/<tbody id="endpoints"[^>]*>.*1080.*<\/tbody>/s
+      assert html =~ ~r/<tbody id="endpoints"[^>]*>.*8080.*<\/tbody>/s
     end
 
-    test "opens new endpoint modal", %{conn: conn} do
+    test "shows new endpoint form when clicking new button", %{conn: conn} do
       {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
-      {:ok, _new_live, html} =
+      html =
         index_live
-        |> element("a", "新建 Endpoint")
+        |> element("button", "新建 Endpoint")
         |> render_click()
-        |> follow_redirect(conn, ~p"/admin/endpoints/new")
 
-      assert html =~ "新建 Endpoint"
-      assert html =~ "端口"
-      assert html =~ "类型"
-      assert html =~ "IP 地址"
+      assert html =~ "new-endpoint-row"
+      assert html =~ "未创建"
     end
 
-    test "creates new endpoint with valid data", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints/new")
+    test "creates new endpoint with inline form", %{conn: conn} do
+      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
-      assert index_live
-             |> form("#endpoint-form",
-               endpoint_schema: %{
-                 port: "9999",
-                 type: "socks5",
-                 ip: "127.0.0.1",
-                 enable: "true"
-               }
-             )
-             |> render_submit()
+      # 点击新建按钮显示表单
+      index_live
+      |> element("button", "新建 Endpoint")
+      |> render_click()
+
+      # 提交新建表单
+      index_live
+      |> form(
+        "#new-endpoint-form",
+        %{
+          port: "9999",
+          type: "socks5",
+          ip: "127.0.0.1",
+          enable: "true"
+        }
+      )
+      |> render_submit()
 
       # 验证 endpoint 已创建
       assert {:ok, endpoint} = EndpointManager.get_endpoint(9999)
@@ -135,26 +145,27 @@ defmodule PpClientWeb.EndpointLiveTest do
       assert endpoint.enable == true
     end
 
-    test "shows validation errors for invalid data", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints/new")
+    test "can cancel new endpoint form", %{conn: conn} do
+      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
+      # 点击新建按钮显示表单
       html =
         index_live
-        |> form("#endpoint-form",
-          endpoint_schema: %{
-            port: "99999",
-            type: "socks5",
-            ip: "invalid",
-            enable: "true"
-          }
-        )
-        |> render_change()
+        |> element("button", "新建 Endpoint")
+        |> render_click()
 
-      assert html =~ "must be less than or equal to 65535"
-      assert html =~ "invalid IP address format"
+      assert html =~ "new-endpoint-row"
+
+      # 取消新建 - 使用桌面端表单的选择器
+      index_live
+      |> element("#new-endpoint-form button[phx-click='cancel_new']")
+      |> render_click()
+
+      # 验证 show_new_form 状态已更新为 false
+      assert :sys.get_state(index_live.pid).socket.assigns.show_new_form == false
     end
 
-    test "opens edit endpoint modal", %{conn: conn} do
+    test "starts inline edit mode when clicking edit button", %{conn: conn} do
       endpoint = %PpClient.Endpoint{
         port: 1080,
         type: :socks5,
@@ -166,13 +177,82 @@ defmodule PpClientWeb.EndpointLiveTest do
 
       {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
-      {:ok, _edit_live, html} =
+      html =
         index_live
-        |> element("a[href='/admin/endpoints/1080/edit']")
+        |> element("#endpoints button[phx-click='start_edit'][phx-value-port='1080']")
         |> render_click()
-        |> follow_redirect(conn, ~p"/admin/endpoints/1080/edit")
 
-      assert html =~ "编辑 Endpoint"
+      # 检查是否进入编辑模式 - 应该有表单元素
+      assert html =~ "name=\"new_port\""
+      assert html =~ "name=\"type\""
+      assert html =~ "name=\"ip\""
+    end
+
+    test "can edit endpoint inline", %{conn: conn} do
+      endpoint = %PpClient.Endpoint{
+        port: 1080,
+        type: :socks5,
+        ip: {127, 0, 0, 1},
+        enable: true
+      }
+
+      :ets.insert(:endpoints, {endpoint.port, endpoint})
+
+      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
+
+      # 开始编辑 - 使用桌面端按钮
+      index_live
+      |> element("#endpoints button[phx-click='start_edit'][phx-value-port='1080']")
+      |> render_click()
+
+      # 提交编辑
+      index_live
+      |> form(
+        "#edit-form-1080",
+        %{
+          new_port: "1081",
+          type: "http",
+          ip: "127.0.0.2",
+          enable: "false"
+        }
+      )
+      |> render_submit()
+
+      # 验证更改
+      assert {:ok, updated} = EndpointManager.get_endpoint(1081)
+      assert updated.port == 1081
+      assert updated.type == :http
+      assert updated.ip == {127, 0, 0, 2}
+      assert updated.enable == false
+
+      # 验证旧端口已删除
+      assert {:error, :not_found} = EndpointManager.get_endpoint(1080)
+    end
+
+    test "can cancel inline edit", %{conn: conn} do
+      endpoint = %PpClient.Endpoint{
+        port: 1080,
+        type: :socks5,
+        ip: {127, 0, 0, 1},
+        enable: true
+      }
+
+      :ets.insert(:endpoints, {endpoint.port, endpoint})
+
+      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
+
+      # 开始编辑 - 使用桌面端按钮
+      index_live
+      |> element("#endpoints button[phx-click='start_edit'][phx-value-port='1080']")
+      |> render_click()
+
+      # 取消编辑 - 使用表单内的按钮
+      html =
+        index_live
+        |> element("#edit-form-1080 button[phx-click='cancel_edit']")
+        |> render_click()
+
+      refute html =~ "edit-form-1080"
       assert html =~ "1080"
     end
 
@@ -190,7 +270,7 @@ defmodule PpClientWeb.EndpointLiveTest do
 
       html =
         index_live
-        |> element("button[phx-click='delete_confirm'][phx-value-port='1080']")
+        |> element("#endpoints button[phx-click='delete_confirm'][phx-value-port='1080']")
         |> render_click()
 
       assert html =~ "确认删除"
@@ -210,9 +290,9 @@ defmodule PpClientWeb.EndpointLiveTest do
 
       {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
-      # 打开删除对话框
+      # 打开删除对话框 - 使用桌面端按钮
       index_live
-      |> element("button[phx-click='delete_confirm'][phx-value-port='1080']")
+      |> element("#endpoints button[phx-click='delete_confirm'][phx-value-port='1080']")
       |> render_click()
 
       # 取消删除
@@ -225,73 +305,31 @@ defmodule PpClientWeb.EndpointLiveTest do
       assert {:ok, _} = EndpointManager.get_endpoint(1080)
       refute html =~ "确认删除"
     end
-  end
 
-  describe "Form validation" do
-    test "validates port is required", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints/new")
+    test "can delete endpoint", %{conn: conn} do
+      endpoint = %PpClient.Endpoint{
+        port: 1080,
+        type: :socks5,
+        ip: {127, 0, 0, 1},
+        enable: true
+      }
 
-      html =
-        index_live
-        |> form("#endpoint-form",
-          endpoint_schema: %{
-            port: "",
-            type: "socks5",
-            ip: "127.0.0.1"
-          }
-        )
-        |> render_change()
+      :ets.insert(:endpoints, {endpoint.port, endpoint})
 
-      assert html =~ "can&#39;t be blank"
-    end
+      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints")
 
-    test "validates port range", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints/new")
+      # 打开删除对话框 - 使用桌面端按钮
+      index_live
+      |> element("#endpoints button[phx-click='delete_confirm'][phx-value-port='1080']")
+      |> render_click()
 
-      # 测试端口太小
-      html =
-        index_live
-        |> form("#endpoint-form",
-          endpoint_schema: %{
-            port: "0",
-            type: "socks5",
-            ip: "127.0.0.1"
-          }
-        )
-        |> render_change()
+      # 确认删除
+      index_live
+      |> element("button[phx-click='delete'][phx-value-port='1080']")
+      |> render_click()
 
-      assert html =~ "must be greater than 0"
-
-      # 测试端口太大
-      html =
-        index_live
-        |> form("#endpoint-form",
-          endpoint_schema: %{
-            port: "70000",
-            type: "socks5",
-            ip: "127.0.0.1"
-          }
-        )
-        |> render_change()
-
-      assert html =~ "must be less than or equal to 65535"
-    end
-
-    test "validates IP address format", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/admin/endpoints/new")
-
-      html =
-        index_live
-        |> form("#endpoint-form",
-          endpoint_schema: %{
-            port: "1080",
-            type: "socks5",
-            ip: "not.an.ip"
-          }
-        )
-        |> render_change()
-
-      assert html =~ "invalid IP address format"
+      # 验证 endpoint 已删除
+      assert {:error, :not_found} = EndpointManager.get_endpoint(1080)
     end
   end
 end

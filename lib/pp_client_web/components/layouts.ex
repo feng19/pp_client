@@ -38,31 +38,67 @@ defmodule PpClientWeb.Layouts do
     <header class="navbar bg-base-200 px-4 sm:px-6 lg:px-8 shadow-sm">
       <div class="flex-1">
         <.link navigate={~p"/"} class="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-lg font-bold">PP Client</span>
+          <img src={~p"/images/logo.svg"} width="36" class="w-8 h-8 sm:w-9 sm:h-9" />
+          <span class="text-base sm:text-lg font-bold">PP Client</span>
         </.link>
       </div>
-      <div class="flex-none">
+
+      <%!-- 桌面端导航 --%>
+      <div class="flex-none hidden lg:flex">
         <ul class="menu menu-horizontal px-1 gap-2">
           <li>
-            <.link navigate={~p"/admin/endpoints"} class="btn btn-ghost btn-xl">
-              <.icon name="hero-server" class="size-6" /> Endpoints
+            <.link navigate={~p"/admin/endpoints"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-server" class="size-5" /> Endpoints
             </.link>
           </li>
           <li>
-            <.link navigate={~p"/admin/profiles"} class="btn btn-ghost btn-xl">
-              <.icon name="hero-server" class="size-6" /> Profiles
+            <.link navigate={~p"/admin/profiles"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-server" class="size-5" /> Profiles
             </.link>
           </li>
           <li>
-            <.link navigate={~p"/admin/conditions"} class="btn btn-ghost btn-xl">
-              <.icon name="hero-server" class="size-6" /> Conditions
+            <.link navigate={~p"/admin/conditions"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-server" class="size-5" /> Conditions
             </.link>
           </li>
           <li>
             <.theme_toggle />
           </li>
         </ul>
+      </div>
+
+      <%!-- 移动端汉堡菜单 --%>
+      <div class="flex-none lg:hidden">
+        <div class="dropdown dropdown-end">
+          <label tabindex="0" class="btn btn-ghost btn-circle">
+            <.icon name="hero-bars-3" class="size-6" />
+          </label>
+          <ul
+            tabindex="0"
+            class="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-200 rounded-box w-52 gap-1"
+          >
+            <li>
+              <.link navigate={~p"/admin/endpoints"} class="flex items-center gap-2">
+                <.icon name="hero-server" class="size-5" /> Endpoints
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/admin/profiles"} class="flex items-center gap-2">
+                <.icon name="hero-server" class="size-5" /> Profiles
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/admin/conditions"} class="flex items-center gap-2">
+                <.icon name="hero-server" class="size-5" /> Conditions
+              </.link>
+            </li>
+            <li class="mt-2">
+              <div class="flex justify-center">
+                <.theme_toggle />
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </header>
 

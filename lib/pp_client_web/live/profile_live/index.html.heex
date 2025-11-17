@@ -1,17 +1,19 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-4 py-8">
+  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
     <.header>
       Profile 管理
       <:subtitle>管理代理配置文件</:subtitle>
       <:actions>
-        <.button navigate={~p"/admin/profiles/new"}>
-          <.icon name="hero-plus" class="size-5 mr-1" /> 新建 Profile
+        <.button navigate={~p"/admin/profiles/new"} class="btn-sm">
+          <.icon name="hero-plus" class="size-4 sm:size-5" />
+          <span class="hidden sm:inline ml-1">新建 Profile</span>
+          <span class="sm:hidden">新建</span>
         </.button>
       </:actions>
     </.header>
 
     <%!-- 搜索栏 --%>
-    <div class="flex flex-col sm:flex-row gap-4 my-6">
+    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
       <%!-- 搜索框 --%>
       <div class="flex-1">
         <form phx-change="search" phx-submit="search" class="relative">
@@ -20,22 +22,22 @@
             name="search"
             value={@search_query}
             placeholder="搜索 Profile 名称或类型..."
-            class="input input-bordered w-full pl-10"
+            class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
             autocomplete="off"
           />
           <.icon
             name="hero-magnifying-glass"
-            class="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-base-content/50"
+            class="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 text-base-content/50"
           />
         </form>
       </div>
     </div>
 
-    <%!-- Profiles 列表 --%>
-    <div class="card bg-base-100 shadow-xl">
+    <%!-- Profiles 列表 - 桌面端表格视图 --%>
+    <div class="hidden md:block card bg-base-100 shadow-xl">
       <div class="card-body p-0">
-        <div class="overflow-x-auto">
-          <table class="table table-zebra">
+        <div class="overflow-x-auto max-h-[calc(100vh-20rem)] overflow-y-auto">
+          <table class="table table-zebra table-sm">
             <thead>
               <tr>
                 <th class="w-48">名称</th>
@@ -71,11 +73,11 @@
                 </td>
                 <td>
                   <%= if profile.enabled do %>
-                    <span class="badge badge-success gap-1">
+                    <span class="badge badge-success gap-1 whitespace-nowrap">
                       <.icon name="hero-check-circle" class="size-4" /> 已启用
                     </span>
                   <% else %>
-                    <span class="badge badge-ghost gap-1">
+                    <span class="badge badge-ghost gap-1 whitespace-nowrap">
                       <.icon name="hero-x-circle" class="size-4" /> 已禁用
                     </span>
                   <% end %>
@@ -118,6 +120,86 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Profiles 列表 - 移动端卡片视图 --%>
+    <div class="md:hidden space-y-3">
+      <%!-- 空状态 --%>
+      <%= if @profiles_empty? do %>
+        <div class="card bg-base-100 shadow-lg">
+          <div class="card-body text-center py-12">
+            <p class="text-base-content/60">
+              <%= if @search_query != "" do %>
+                没有找到匹配的 Profile
+              <% else %>
+                暂无 Profile，点击上方按钮创建
+              <% end %>
+            </p>
+          </div>
+        </div>
+      <% end %>
+
+      <%!-- Profile 卡片列表 --%>
+      <div id="profiles-mobile" phx-update="stream">
+        <div
+          :for={{id, profile} <- @streams.profiles}
+          id={"#{id}-mobile"}
+          class="card bg-base-100 shadow-lg"
+        >
+          <div class="card-body p-4">
+            <div class="flex justify-between items-start mb-3">
+              <div class="flex-1">
+                <h3 class="font-bold text-base">{profile.name}</h3>
+                <div class="flex gap-2 mt-2 flex-wrap">
+                  <span class="badge badge-outline badge-sm">{type_label(profile.type)}</span>
+                  <%= if profile.enabled do %>
+                    <span class="badge badge-success badge-sm gap-1">
+                      <.icon name="hero-check-circle" class="size-3" /> 已启用
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost badge-sm gap-1">
+                      <.icon name="hero-x-circle" class="size-3" /> 已禁用
+                    </span>
+                  <% end %>
+                  <%= if profile.type != :direct do %>
+                    <span class="badge badge-ghost badge-sm">
+                      {length(profile.servers || [])} 个服务器
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <button
+                phx-click="toggle_enable"
+                phx-value-name={profile.name}
+                class="btn btn-sm btn-ghost flex-1"
+                title={if profile.enabled, do: "禁用", else: "启用"}
+              >
+                <%= if profile.enabled do %>
+                  <.icon name="hero-pause" class="size-4" /> 禁用
+                <% else %>
+                  <.icon name="hero-play" class="size-4" /> 启用
+                <% end %>
+              </button>
+              <.button
+                navigate={~p"/admin/profiles/#{profile.name}/edit"}
+                class="btn btn-sm btn-ghost"
+              >
+                <.icon name="hero-pencil" class="size-4" /> 编辑
+              </.button>
+              <button
+                phx-click="delete_confirm"
+                phx-value-name={profile.name}
+                class="btn btn-sm btn-ghost text-error"
+                title="删除"
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

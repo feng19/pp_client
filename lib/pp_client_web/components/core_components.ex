@@ -287,16 +287,22 @@ defmodule PpClientWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
-      <div>
-        <h1 class="text-lg font-semibold leading-8">
+    <header class={[
+      @actions != [] &&
+        "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6",
+      "pb-3 sm:pb-4"
+    ]}>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-base sm:text-lg font-semibold leading-6 sm:leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-xs sm:text-sm text-base-content/70 mt-1">
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="flex-none w-full sm:w-auto flex gap-2 sm:gap-0">
+        {render_slot(@actions)}
+      </div>
     </header>
     """
   end

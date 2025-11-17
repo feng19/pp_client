@@ -56,7 +56,8 @@ defmodule PpClientWeb.ProfileLiveTest do
         |> element("form")
         |> render_change(%{search: "nonexistent"})
 
-      refute html =~ "test-profile"
+      # 检查桌面端表格中不包含 test-profile
+      refute html =~ ~r/<tbody id="profiles"[^>]*>.*test-profile.*<\/tbody>/s
     end
 
     test "displays empty state when no profiles match search", %{conn: conn} do
@@ -162,7 +163,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "existing",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -204,7 +206,7 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       # 提交后应该显示验证错误在 flash 消息中
       assert html =~ "保存失败"
-      assert html =~ "Remote proxy profile must have at least one server"
+      assert html =~ "Remote profile must have at least one server"
       # 表单应该仍然存在（没有跳转）
       assert has_element?(view, "#profile-form")
     end
@@ -249,7 +251,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "edit-test",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -264,7 +267,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "update-test",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -298,7 +302,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "toggle-test",
         type: :direct,
-        enabled: false
+        enabled: false,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -306,7 +311,7 @@ defmodule PpClientWeb.ProfileLiveTest do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
       view
-      |> element("button[phx-click='toggle_enable'][phx-value-name='toggle-test']")
+      |> element("#profiles button[phx-click='toggle_enable'][phx-value-name='toggle-test']")
       |> render_click()
 
       {:ok, updated} = ProfileManager.get_profile("toggle-test")
@@ -317,7 +322,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "toggle-test-2",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -325,7 +331,7 @@ defmodule PpClientWeb.ProfileLiveTest do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
       view
-      |> element("button[phx-click='toggle_enable'][phx-value-name='toggle-test-2']")
+      |> element("#profiles button[phx-click='toggle_enable'][phx-value-name='toggle-test-2']")
       |> render_click()
 
       {:ok, updated} = ProfileManager.get_profile("toggle-test-2")
@@ -338,7 +344,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "delete-test",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
@@ -347,7 +354,7 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       html =
         view
-        |> element("button[phx-click='delete_confirm'][phx-value-name='delete-test']")
+        |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test']")
         |> render_click()
 
       assert html =~ "确认删除"
@@ -358,16 +365,17 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "delete-test-2",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 打开确认对话框
+      # 打开确认对话框 - 使用桌面端按钮
       view
-      |> element("button[phx-click='delete_confirm'][phx-value-name='delete-test-2']")
+      |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test-2']")
       |> render_click()
 
       # 确认删除
@@ -382,16 +390,17 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "delete-test-3",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 打开确认对话框
+      # 打开确认对话框 - 使用桌面端按钮
       view
-      |> element("button[phx-click='delete_confirm'][phx-value-name='delete-test-3']")
+      |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test-3']")
       |> render_click()
 
       # 取消删除
@@ -593,7 +602,8 @@ defmodule PpClientWeb.ProfileLiveTest do
       profile = %ProxyProfile{
         name: "pubsub-test",
         type: :direct,
-        enabled: true
+        enabled: true,
+        servers: []
       }
 
       ProfileManager.add_profile(profile)

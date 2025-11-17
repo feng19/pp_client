@@ -16,15 +16,13 @@ defmodule PpClient.AutoSwitchClient do
 
       {:socks5, setting} ->
         {:ok, ws_client} = Socks5Client.start_link(target, setting, parent)
-        {:ok, {WSClient, ws_client}}
+        {:ok, {Socks5Client, ws_client}}
     end
   end
 
   def route({_type, host, _port}), do: route(host)
 
   def route(host) do
-    IO.puts(host)
-
     Cache.conditions()
     |> Enum.find_value(fn
       {:all, :direct, _} ->
@@ -41,4 +39,5 @@ defmodule PpClient.AutoSwitchClient do
 
   def send({DirectClient, pid}, data), do: DirectClient.send(pid, data)
   def send({WSClient, ws_client}, data), do: WSClient.send(ws_client, data)
+  def send({Socks5Client, ws_client}, data), do: Socks5Client.send(ws_client, data)
 end
