@@ -39,11 +39,14 @@ defmodule PpClientWeb.ProfileLive.Index do
   defp apply_action(socket, :new, _params) do
     changeset = ProfileSchema.changeset(%ProfileSchema{}, %{})
 
+    # 默认添加一个 server 表单
+    default_server = %{"type" => "socks5", "enable" => true}
+
     socket
     |> assign(:page_title, "新建 Profile")
     |> assign(:form, to_form(changeset))
     |> assign(:editing_name, nil)
-    |> assign(:server_forms, [])
+    |> assign(:server_forms, [{0, default_server}])
   end
 
   defp apply_action(socket, :edit, %{"name" => name}) do
@@ -148,7 +151,26 @@ defmodule PpClientWeb.ProfileLive.Index do
         end
 
       {:error, changeset} ->
-        {:noreply, assign(socket, form: to_form(changeset))}
+        # 更新 server_forms 以保持表单状态
+        server_forms =
+          case params["servers"] do
+            nil ->
+              []
+
+            servers_params when is_map(servers_params) ->
+              servers_params
+              |> Enum.sort_by(fn {k, _v} -> String.to_integer(k) end)
+              |> Enum.map(fn {idx, server_data} ->
+                {String.to_integer(idx), server_data}
+              end)
+          end
+
+        socket =
+          socket
+          |> assign(:form, to_form(changeset))
+          |> assign(:server_forms, server_forms)
+
+        {:noreply, socket}
     end
   end
 

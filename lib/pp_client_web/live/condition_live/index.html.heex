@@ -1,0 +1,239 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-4 py-8">
+    <.header>
+      Condition 管理
+      <:subtitle>管理代理匹配规则</:subtitle>
+      <:actions>
+        <.button navigate={~p"/admin/conditions/new"}>
+          <.icon name="hero-plus" class="size-5 mr-1" /> 新建 Condition
+        </.button>
+      </:actions>
+    </.header>
+
+    <%!-- 搜索和筛选栏 --%>
+    <div class="flex flex-col sm:flex-row gap-4 my-6">
+      <%!-- 搜索框 --%>
+      <div class="flex-1">
+        <form phx-change="search" phx-submit="search" class="relative">
+          <input
+            type="text"
+            name="search"
+            value={@search_query}
+            placeholder="搜索规则或 Profile..."
+            class="input input-bordered w-full pl-10"
+            autocomplete="off"
+          />
+          <.icon
+            name="hero-magnifying-glass"
+            class="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-base-content/50"
+          />
+        </form>
+      </div>
+
+      <%!-- 状态筛选 --%>
+      <div class="w-full sm:w-48">
+        <form phx-change="filter_status">
+          <select name="status" class="select select-bordered w-full">
+            <option value="all" selected={@filter_status == "all"}>全部状态</option>
+            <option value="enabled" selected={@filter_status == "enabled"}>已启用</option>
+            <option value="disabled" selected={@filter_status == "disabled"}>已禁用</option>
+          </select>
+        </form>
+      </div>
+
+      <%!-- Profile 筛选 --%>
+      <div class="w-full sm:w-48">
+        <form phx-change="filter_profile">
+          <select name="profile" class="select select-bordered w-full">
+            <option value="all" selected={@filter_profile == "all"}>全部 Profile</option>
+            <%= for profile_name <- @available_profiles do %>
+              <option value={profile_name} selected={@filter_profile == profile_name}>
+                {profile_name}
+              </option>
+            <% end %>
+          </select>
+        </form>
+      </div>
+    </div>
+
+    <%!-- Conditions 列表 --%>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body p-0">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th class="w-16">ID</th>
+                <th class="w-96">匹配规则</th>
+                <th class="w-48">关联 Profile</th>
+                <th class="w-24">状态</th>
+                <th class="text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="conditions" phx-update="stream">
+              <tr :if={@conditions_empty?} id="empty-state">
+                <td colspan="5" class="text-center py-8 text-base-content/60">
+                  <%= if @search_query != "" || @filter_status != "all" || @filter_profile != "all" do %>
+                    没有找到匹配的 Condition
+                  <% else %>
+                    暂无 Condition，点击上方按钮创建
+                  <% end %>
+                </td>
+              </tr>
+              <tr :for={{id, condition} <- @streams.conditions} id={id} class="hover">
+                <td class="font-mono text-sm">{condition.id}</td>
+                <td>
+                  <code class="text-sm bg-base-200 px-2 py-1 rounded">
+                    {format_condition(condition.condition)}
+                  </code>
+                </td>
+                <td>
+                  <span class="badge badge-outline badge-lg">
+                    {condition.profile_name}
+                  </span>
+                </td>
+                <td>
+                  <%= if condition.enabled do %>
+                    <span class="badge badge-success gap-1">
+                      <.icon name="hero-check-circle" class="size-4" /> 已启用
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost gap-1">
+                      <.icon name="hero-x-circle" class="size-4" /> 已禁用
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <%!-- 启用/禁用切换 --%>
+                    <button
+                      phx-click="toggle_enable"
+                      phx-value-id={condition.id}
+                      class="btn btn-sm btn-ghost"
+                      title={if condition.enabled, do: "禁用", else: "启用"}
+                    >
+                      <%= if condition.enabled do %>
+                        <.icon name="hero-pause" class="size-4" />
+                      <% else %>
+                        <.icon name="hero-play" class="size-4" />
+                      <% end %>
+                    </button>
+
+                    <%!-- 编辑 --%>
+                    <.button
+                      navigate={~p"/admin/conditions/#{condition.id}/edit"}
+                      class="btn btn-sm btn-ghost"
+                    >
+                      <.icon name="hero-pencil" class="size-4" />
+                    </.button>
+
+                    <%!-- 删除 --%>
+                    <button
+                      phx-click="delete_confirm"
+                      phx-value-id={condition.id}
+                      class="btn btn-sm btn-ghost text-error hover:bg-error/10"
+                      title="删除"
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- 表单模态框 --%>
+    <%= if @live_action in [:new, :edit] do %>
+      <div class="modal modal-open">
+        <div class="modal-box max-w-2xl">
+          <h3 class="font-bold text-lg mb-4">
+            {if @live_action == :new, do: "新建 Condition", else: "编辑 Condition"}
+          </h3>
+
+          <.form
+            for={@form}
+            id="condition-form"
+            phx-change="validate"
+            phx-submit="save"
+          >
+            <.input
+              field={@form[:pattern]}
+              type="text"
+              label="匹配模式"
+              placeholder="*.example.com 或 * 匹配所有"
+              required
+            />
+            <p class="mt-2 text-sm text-base-content/70">
+              支持通配符：* 匹配任意字符，? 匹配单个字符。例如：*.google.com, api.*.com
+            </p>
+
+            <.input
+              field={@form[:profile_name]}
+              type="select"
+              label="关联 Profile"
+              options={Enum.map(@available_profiles, &{&1, &1})}
+              prompt="选择一个 Profile"
+              required
+            />
+
+            <.input
+              field={@form[:enabled]}
+              type="checkbox"
+              label="启用此规则"
+            />
+
+            <div class="modal-action">
+              <.button
+                type="button"
+                navigate={~p"/admin/conditions"}
+                class="btn btn-ghost"
+              >
+                取消
+              </.button>
+              <.button type="submit" variant="primary">
+                保存
+              </.button>
+            </div>
+          </.form>
+        </div>
+        <label class="modal-backdrop" phx-click={JS.navigate(~p"/admin/conditions")}>
+          Close
+        </label>
+      </div>
+    <% end %>
+
+    <%!-- 删除确认对话框 --%>
+    <%= if @delete_id do %>
+      <div class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4">确认删除</h3>
+          <p class="py-4">
+            确定要删除 Condition <span class="font-bold">#{@delete_id}</span> 吗？
+          </p>
+          <p class="text-sm text-warning">
+            <.icon name="hero-exclamation-triangle" class="size-4 inline" /> 此操作将删除该匹配规则。
+          </p>
+          <div class="modal-action">
+            <button
+              phx-click="delete_cancel"
+              class="btn btn-ghost"
+            >
+              取消
+            </button>
+            <button
+              phx-click="delete"
+              phx-value-id={@delete_id}
+              class="btn btn-error"
+            >
+              确认删除
+            </button>
+          </div>
+        </div>
+        <label class="modal-backdrop" phx-click="delete_cancel">Close</label>
+      </div>
+    <% end %>
+  </div>
+</Layouts.app>

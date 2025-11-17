@@ -192,28 +192,36 @@ defmodule PpClient.ProfileManager do
 
   @impl true
   def handle_call({:add_profile, %{name: name} = profile}, _from, state) do
-    case :ets.insert_new(@table, {name, profile}) do
-      true ->
-        Logger.info("Added profile '#{name}'")
-        {:reply, {:ok, profile}, state}
-
+    with {:ok, validated_profile} <- ProxyProfile.validate(profile),
+         true <- :ets.insert_new(@table, {name, validated_profile}) do
+      Logger.info("Added profile '#{name}'")
+      {:reply, {:ok, validated_profile}, state}
+    else
       false ->
         Logger.error("Failed to add profile '#{name}': already exists")
         {:reply, {:error, :already_exists}, state}
+
+      {:error, reason} ->
+        Logger.error("Failed to add profile '#{name}': #{reason}")
+        {:reply, {:error, reason}, state}
     end
   end
 
   @impl true
   def handle_call({:update_profile, %{name: name} = profile}, _from, state) do
-    case :ets.lookup(@table, name) do
-      [{^name, _old_profile}] ->
-        :ets.insert(@table, {name, profile})
-        Logger.info("Updated profile '#{name}'")
-        {:reply, {:ok, profile}, state}
-
+    with {:ok, validated_profile} <- ProxyProfile.validate(profile),
+         [{^name, _old_profile}] <- :ets.lookup(@table, name) do
+      :ets.insert(@table, {name, validated_profile})
+      Logger.info("Updated profile '#{name}'")
+      {:reply, {:ok, validated_profile}, state}
+    else
       [] ->
         Logger.warning("Profile '#{name}' not found for update")
         {:reply, {:error, :not_found}, state}
+
+      {:error, reason} ->
+        Logger.error("Failed to update profile '#{name}': #{reason}")
+        {:reply, {:error, reason}, state}
     end
   end
 

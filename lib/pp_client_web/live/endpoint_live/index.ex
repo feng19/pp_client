@@ -36,7 +36,15 @@ defmodule PpClientWeb.EndpointLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    changeset = EndpointSchema.changeset(%EndpointSchema{}, %{})
+    # 提供默认值
+    default_attrs = %{
+      port: 1080,
+      type: :socks5,
+      ip: "127.0.0.1",
+      enable: true
+    }
+
+    changeset = EndpointSchema.changeset(%EndpointSchema{}, default_attrs)
 
     socket
     |> assign(:page_title, "新建 Endpoint")

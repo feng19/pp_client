@@ -11,7 +11,7 @@ defmodule PpClient.Schemas.ProfileSchema do
   @primary_key false
   embedded_schema do
     field :name, :string
-    field :type, Ecto.Enum, values: [:direct, :remote]
+    field :type, Ecto.Enum, values: [:direct, :remote], default: :remote
     field :enabled, :boolean, default: true
 
     embeds_many :servers, Server, primary_key: false do
@@ -35,6 +35,25 @@ defmodule PpClient.Schemas.ProfileSchema do
     |> validate_required([:name, :type])
     |> validate_length(:name, min: 1, max: 100)
     |> cast_embed(:servers, with: &server_changeset/2)
+    |> validate_remote_servers()
+  end
+
+  defp validate_remote_servers(changeset) do
+    # 只在 :insert 或 :update action 时验证（即提交时），不在 :validate 时验证
+    action = changeset.action
+
+    if action in [:insert, :update] do
+      type = get_field(changeset, :type)
+      servers = get_field(changeset, :servers)
+
+      if type == :remote and (is_nil(servers) or servers == []) do
+        add_error(changeset, :servers, "remote proxy profile must have at least one server")
+      else
+        changeset
+      end
+    else
+      changeset
+    end
   end
 
   @doc """

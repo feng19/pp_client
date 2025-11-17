@@ -55,6 +55,11 @@ defmodule PpClientWeb.Layouts do
             </.link>
           </li>
           <li>
+            <.link navigate={~p"/admin/conditions"} class="btn btn-ghost btn-xl">
+              <.icon name="hero-server" class="size-6" /> Conditions
+            </.link>
+          </li>
+          <li>
             <.theme_toggle />
           </li>
         </ul>
