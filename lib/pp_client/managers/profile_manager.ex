@@ -79,7 +79,11 @@ defmodule PpClient.ProfileManager do
 
   @impl true
   def init(_init_arg) do
-    load_profiles_from_config()
+    if not exists?("default") do
+      default = ProxyProfile.direct()
+      :ets.insert_new(@table, {default.name, default})
+    end
+
     {:ok, %{}}
   end
 
@@ -160,19 +164,5 @@ defmodule PpClient.ProfileManager do
         Logger.warning("Profile '#{name}' not found for disabling")
         {:reply, {:error, :not_found}, state}
     end
-  end
-
-  ## Private Functions
-
-  defp load_profiles_from_config do
-    # Load a default "direct" profile
-    direct_profile = ProxyProfile.direct()
-    :ets.insert(@table, {direct_profile.name, direct_profile})
-    Logger.info("Loaded default 'direct' profile")
-
-    # Load additional profiles from config file if it exists
-    # This can be extended to load from a profiles config file
-    # similar to how EndpointManager loads from pp_config.exs
-    :ok
   end
 end
