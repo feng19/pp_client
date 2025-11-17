@@ -4,9 +4,8 @@ defmodule PpClient.Cache do
 
   Caches all enabled conditions and maps profiles to servers.
 
-  Cache structure: `{condition_id, condition_pattern, profile_type, servers}`
+  Cache structure: `{condition_pattern, profile_type, servers}`
   where:
-  - `condition_id`: integer ID of the condition
   - `condition_pattern`: the regex pattern from the condition
   - `profile_type`: `:direct` or `:remote`
   - `servers`: list of `PpClient.ProxyServer.t()` structs
@@ -28,9 +27,12 @@ defmodule PpClient.Cache do
     GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  @spec condition_stream() :: Enumerable.t()
-  def condition_stream do
-    ets_stream(@table)
+  @spec conditions() :: Enumerable.t()
+  def conditions do
+    case :ets.lookup(@table, :conditions) do
+      [{_, conditions}] -> conditions
+      _ -> []
+    end
   end
 
   ## GenServer Callbacks
@@ -61,45 +63,29 @@ defmodule PpClient.Cache do
 
     # Build cache entries for each enabled condition
     cache_entries =
-      Enum.flat_map(enabled_conditions, fn condition ->
+      Enum.reduce(enabled_conditions, [], fn condition, acc ->
         case ProfileManager.get_profile(condition.profile_name) do
-          {:ok, profile} when profile.enabled ->
+          {:ok, %{enabled: true, type: type, servers: servers}} ->
             # Only cache if the profile is also enabled
-            [{condition.id, condition.condition, profile.type, profile.servers}]
+            [{condition.condition, type, servers} | acc]
 
           {:ok, _profile} ->
-            # Profile exists but is disabled
-            Logger.debug(
-              "Skipping condition #{condition.id}: profile '#{condition.profile_name}' is disabled"
-            )
-
-            []
+            acc
 
           {:error, :not_found} ->
             Logger.warning(
               "Skipping condition #{condition.id}: profile '#{condition.profile_name}' not found"
             )
 
-            []
+            acc
         end
       end)
+      |> Enum.reverse()
 
     # Insert all cache entries
-    :ets.insert(@table, cache_entries)
+    :ets.insert(@table, {:conditions, cache_entries})
 
     Logger.info("Cache refreshed with #{length(cache_entries)} entries")
     :ok
-  end
-
-  defp ets_stream(table) do
-    Stream.unfold(:ets.first(table), fn
-      :"$end_of_table" ->
-        nil
-
-      key ->
-        [record] = :ets.lookup(table, key)
-        next_key = :ets.next(table, key)
-        {record, next_key}
-    end)
   end
 end

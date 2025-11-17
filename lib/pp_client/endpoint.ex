@@ -40,8 +40,8 @@ defmodule PpClient.Endpoint do
         }
 
   @spec new(map() | Keyword.t()) :: t()
-  def new(config) do
-    struct(__MODULE__, config)
+  def new(opts) do
+    struct!(__MODULE__, opts)
   end
 
   def child_id(%__MODULE__{port: port}), do: {ThousandIsland, port}

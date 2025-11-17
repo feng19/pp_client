@@ -22,9 +22,12 @@ defmodule PpClientWeb.ConditionLive.Index do
       |> assign(:form, nil)
       |> assign(:delete_id, nil)
       |> assign(:available_profiles, [])
+      |> assign(:connect_failed_hosts, [])
+      |> assign(:show_connect_failed, false)
       |> stream_configure(:conditions, dom_id: fn condition -> "condition-#{condition.id}" end)
       |> load_conditions()
       |> load_profiles()
+      |> load_connect_failed_hosts()
 
     {:ok, socket}
   end
@@ -191,6 +194,88 @@ defmodule PpClientWeb.ConditionLive.Index do
     end
   end
 
+  def handle_event("toggle_connect_failed", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_connect_failed, !socket.assigns.show_connect_failed)
+      |> load_connect_failed_hosts()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("create_from_failed", %{"host" => host, "port" => port_str}, socket) do
+    port = String.to_integer(port_str)
+    host_str = to_string(host)
+
+    # 创建匹配模式，使用主机名
+    pattern = "*.#{host_str}"
+
+    # 获取第一个可用的 profile，如果没有则提示用户
+    case socket.assigns.available_profiles do
+      [] ->
+        {:noreply, put_flash(socket, :error, "请先创建至少一个 Profile")}
+
+      [first_profile | _] ->
+        # 创建 condition
+        condition = %PpClient.Condition{
+          condition: :all,
+          profile_name: first_profile,
+          enabled: true
+        }
+
+        # 尝试将 pattern 转换为 regex
+        condition =
+          case PpClient.Condition.pattern_to_regex(pattern) do
+            {:ok, regex} -> %{condition | condition: regex}
+            {:error, _} -> condition
+          end
+
+        case ConditionManager.add_condition(condition) do
+          {:ok, _} ->
+            # 清除该失败记录
+            ConditionManager.clear_connect_failed(host, port)
+
+            socket =
+              socket
+              |> put_flash(:info, "已从 #{host_str}:#{port} 创建 Condition")
+              |> load_conditions()
+              |> load_connect_failed_hosts()
+
+            broadcast_change()
+            {:noreply, socket}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+        end
+    end
+  end
+
+  def handle_event("clear_failed_host", %{"host" => host, "port" => port_str}, socket) do
+    port = String.to_integer(port_str)
+    ConditionManager.clear_connect_failed(host, port)
+
+    socket =
+      socket
+      |> put_flash(:info, "已清除失败记录")
+      |> load_connect_failed_hosts()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("clear_all_failed", _params, socket) do
+    # 清除所有失败记录
+    Enum.each(socket.assigns.connect_failed_hosts, fn host ->
+      ConditionManager.clear_connect_failed(host.host, host.port)
+    end)
+
+    socket =
+      socket
+      |> put_flash(:info, "已清除所有失败记录")
+      |> load_connect_failed_hosts()
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info({:condition_updated, _condition}, socket) do
     {:noreply, load_conditions(socket)}
@@ -231,6 +316,11 @@ defmodule PpClientWeb.ConditionLive.Index do
     profile_names = Enum.map(profiles, & &1.name)
 
     assign(socket, :available_profiles, profile_names)
+  end
+
+  defp load_connect_failed_hosts(socket) do
+    hosts = ConditionManager.get_connect_failed_hosts()
+    assign(socket, :connect_failed_hosts, hosts)
   end
 
   defp filter_conditions(conditions, assigns) do
@@ -285,4 +375,32 @@ defmodule PpClientWeb.ConditionLive.Index do
     |> String.replace("<<<DOT>>>", ".")
     |> String.slice(0, 50)
   end
+
+  defp format_timestamp(timestamp) when is_integer(timestamp) do
+    datetime = DateTime.from_unix!(timestamp)
+    now = DateTime.utc_now()
+    diff_seconds = DateTime.diff(now, datetime)
+
+    cond do
+      diff_seconds < 60 ->
+        "刚刚"
+
+      diff_seconds < 3600 ->
+        minutes = div(diff_seconds, 60)
+        "#{minutes} 分钟前"
+
+      diff_seconds < 86400 ->
+        hours = div(diff_seconds, 3600)
+        "#{hours} 小时前"
+
+      diff_seconds < 604_800 ->
+        days = div(diff_seconds, 86400)
+        "#{days} 天前"
+
+      true ->
+        Calendar.strftime(datetime, "%Y-%m-%d %H:%M")
+    end
+  end
+
+  defp format_timestamp(_), do: "未知"
 end

@@ -56,6 +56,131 @@
       </div>
     </div>
 
+    <%!-- Connect Failed 列表 --%>
+    <div class="mb-6">
+      <button
+        phx-click="toggle_connect_failed"
+        class="btn btn-outline btn-sm gap-2"
+      >
+        <.icon name="hero-exclamation-triangle" class="size-4" /> 连接失败列表
+        <%= if @show_connect_failed do %>
+          <.icon name="hero-chevron-up" class="size-4" />
+        <% else %>
+          <.icon name="hero-chevron-down" class="size-4" />
+        <% end %>
+        <%= if length(@connect_failed_hosts) > 0 do %>
+          <span class="badge badge-error badge-sm">{length(@connect_failed_hosts)}</span>
+        <% end %>
+      </button>
+
+      <%= if @show_connect_failed do %>
+        <div class="card bg-base-100 shadow-xl mt-4">
+          <div class="card-body">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="card-title text-lg">
+                <.icon name="hero-exclamation-triangle" class="size-5 text-warning" /> 连接失败的主机
+              </h3>
+              <%= if length(@connect_failed_hosts) > 0 do %>
+                <button
+                  phx-click="clear_all_failed"
+                  class="btn btn-sm btn-ghost text-error"
+                  data-confirm="确定要清除所有失败记录吗？"
+                >
+                  <.icon name="hero-trash" class="size-4" /> 清除全部
+                </button>
+              <% end %>
+            </div>
+
+            <%= if length(@connect_failed_hosts) == 0 do %>
+              <div class="text-center py-8 text-base-content/60">
+                <.icon name="hero-check-circle" class="size-12 mx-auto mb-2 text-success" />
+                <p>暂无连接失败记录</p>
+              </div>
+            <% else %>
+              <div class="overflow-x-auto">
+                <table class="table table-zebra">
+                  <thead>
+                    <tr>
+                      <th>主机</th>
+                      <th>端口</th>
+                      <th>失败次数</th>
+                      <th>最后失败时间</th>
+                      <th class="text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={host <- @connect_failed_hosts} class="hover">
+                      <td>
+                        <code class="text-sm bg-base-200 px-2 py-1 rounded">
+                          {to_string(host.host)}
+                        </code>
+                      </td>
+                      <td>
+                        <span class="font-mono text-sm">{host.port}</span>
+                      </td>
+                      <td>
+                        <span class="badge badge-error gap-1">
+                          <.icon name="hero-x-circle" class="size-3" />
+                          {host.count}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="text-sm text-base-content/70">
+                          {format_timestamp(host.timestamp)}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="flex justify-end gap-2">
+                          <%!-- 快速创建 Condition --%>
+                          <button
+                            phx-click="create_from_failed"
+                            phx-value-host={host.host}
+                            phx-value-port={host.port}
+                            class="btn btn-sm btn-primary gap-1"
+                            title="从此主机创建 Condition"
+                          >
+                            <.icon name="hero-plus" class="size-4" /> 创建规则
+                          </button>
+
+                          <%!-- 清除单个记录 --%>
+                          <button
+                            phx-click="clear_failed_host"
+                            phx-value-host={host.host}
+                            phx-value-port={host.port}
+                            class="btn btn-sm btn-ghost text-error"
+                            title="清除此记录"
+                          >
+                            <.icon name="hero-trash" class="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mt-4 p-4 bg-info/10 rounded-lg">
+                <div class="flex gap-2">
+                  <.icon
+                    name="hero-information-circle"
+                    class="size-5 text-info flex-shrink-0 mt-0.5"
+                  />
+                  <div class="text-sm text-base-content/80">
+                    <p class="font-semibold mb-1">提示：</p>
+                    <ul class="list-disc list-inside space-y-1">
+                      <li>点击"创建规则"可快速为该主机创建匹配规则</li>
+                      <li>创建的规则将使用通配符模式 *.hostname 来匹配该域名及其子域名</li>
+                      <li>规则将关联到第一个可用的 Profile</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
     <%!-- Conditions 列表 --%>
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body p-0">

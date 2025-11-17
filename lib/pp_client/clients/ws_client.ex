@@ -7,15 +7,20 @@ defmodule PpClient.WSClient do
   @domain 0x03
 
   def start_link(target, %{servers: servers}, parent) do
-    start_link(target, Enum.random(servers), parent)
+    server = Enum.random(servers)
+    start_link(target, [{:type, server.type} | server.opts], parent)
   end
 
-  def start_link(target, server, parent) do
-    first_frame = get_first_frame_by_type(server, target)
-    headers = get_headers_by_type(server, target)
+  def start_link(target, setting, parent) when is_list(setting) do
+    start_link(target, Map.new(setting), parent)
+  end
+
+  def start_link(target, setting, parent) when is_map(setting) do
+    first_frame = get_first_frame_by_type(setting, target)
+    headers = get_headers_by_type(setting, target)
 
     uri =
-      case server.uri do
+      case setting.uri do
         uri when is_binary(uri) -> URI.parse(uri)
         uri = %URI{} -> uri
       end
@@ -23,7 +28,7 @@ defmodule PpClient.WSClient do
     Wind.Client.start_link(__MODULE__,
       uri: uri,
       headers: headers,
-      pp: %{server: server, first_frame: first_frame, parent: parent}
+      pp: %{setting: setting, first_frame: first_frame, parent: parent}
     )
   end
 

@@ -6,27 +6,37 @@ defmodule PpClient.AutoSwitchClient do
 
   def start_link(target, _opts, parent \\ self()) do
     case route(target) do
-      {:direct, _} ->
+      :direct ->
         {:ok, pid} = DirectClient.start_link(target, parent)
         {:ok, {DirectClient, pid}}
 
-      {:remote, %{client_type: :ws} = server} ->
-        {:ok, ws_client} = WSClient.start_link(target, server, parent)
+      {:ws, setting} ->
+        {:ok, ws_client} = WSClient.start_link(target, setting, parent)
         {:ok, {WSClient, ws_client}}
 
-      {:remote, %{client_type: :socks5} = server} ->
-        {:ok, ws_client} = Socks5Client.start_link(target, server, parent)
+      {:socks5, setting} ->
+        {:ok, ws_client} = Socks5Client.start_link(target, setting, parent)
         {:ok, {WSClient, ws_client}}
     end
   end
 
-  def route({_type, host, _port}) do
-    Cache.condition_stream()
-    |> Enum.find_value(fn {_, regex, type, servers} ->
-      if Regex.match?(regex, host) do
-        {type, Enum.random(servers)}
-      end
+  def route({_type, host, _port}), do: route(host)
+
+  def route(host) do
+    IO.puts(host)
+
+    Cache.conditions()
+    |> Enum.find_value(fn
+      {:all, :direct, _} ->
+        :direct
+
+      {regex, _type, servers} ->
+        if Regex.match?(regex, host) do
+          server = Enum.random(servers)
+          {server.client_type, [{:type, server.type} | server.opts]}
+        end
     end)
+    |> Kernel.||(:direct)
   end
 
   def send({DirectClient, pid}, data), do: DirectClient.send(pid, data)

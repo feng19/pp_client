@@ -35,5 +35,6 @@ pp_client-*.tar
 npm-debug.log
 /assets/node_modules/
 pp_config.exs
+pp.exs
 /pp_client
 /burrito_out/

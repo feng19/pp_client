@@ -13,31 +13,13 @@ defmodule PpClient.ConditionManager do
 
   @table :conditions
 
-  ## Client API
+  ## Public API
 
-  @doc """
-  Starts the ConditionManager GenServer.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.start_link([])
-      {:ok, pid}
-
-  """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(init_arg) do
     GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  @doc """
-  Returns all conditions stored in the ETS table.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.all_conditions()
-      [%PpClient.Condition{id: 1, ...}, ...]
-
-  """
   @spec all_conditions() :: [Condition.t()]
   def all_conditions do
     @table
@@ -46,18 +28,6 @@ defmodule PpClient.ConditionManager do
     |> Enum.sort_by(& &1.id)
   end
 
-  @doc """
-  Returns a condition by its ID.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.get_condition(1)
-      {:ok, %PpClient.Condition{id: 1, ...}}
-
-      iex> PpClient.ConditionManager.get_condition(999)
-      {:error, :not_found}
-
-  """
   @spec get_condition(non_neg_integer()) :: {:ok, Condition.t()} | {:error, :not_found}
   def get_condition(id) when is_integer(id) do
     case :ets.lookup(@table, id) do
@@ -66,111 +36,37 @@ defmodule PpClient.ConditionManager do
     end
   end
 
-  @doc """
-  Returns all enabled conditions.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.enabled_conditions()
-      [%PpClient.Condition{id: 1, enabled: true}, ...]
-
-  """
   @spec enabled_conditions() :: [Condition.t()]
   def enabled_conditions do
     all_conditions()
     |> Enum.filter(& &1.enabled)
   end
 
-  @doc """
-  Adds a new condition to the ETS table.
-
-  ## Examples
-
-      iex> condition = %PpClient.Condition{condition: ~r/example/, profile_name: "proxy1", enabled: true}
-      iex> PpClient.ConditionManager.add_condition(condition)
-      {:ok, %PpClient.Condition{id: 1, ...}}
-
-  """
   @spec add_condition(Condition.t()) :: {:ok, Condition.t()} | {:error, term()}
   def add_condition(%Condition{} = condition) do
     GenServer.call(__MODULE__, {:add_condition, condition})
   end
 
-  @doc """
-  Updates an existing condition in the ETS table.
-
-  ## Examples
-
-      iex> condition = %PpClient.Condition{id: 1, condition: ~r/updated/, profile_name: "proxy2", enabled: true}
-      iex> PpClient.ConditionManager.update_condition(condition)
-      {:ok, %PpClient.Condition{id: 1, ...}}
-
-      iex> PpClient.ConditionManager.update_condition(%PpClient.Condition{id: 999, ...})
-      {:error, :not_found}
-
-  """
   @spec update_condition(Condition.t()) :: {:ok, Condition.t()} | {:error, :not_found}
   def update_condition(%Condition{id: id} = condition) when not is_nil(id) do
     GenServer.call(__MODULE__, {:update_condition, condition})
   end
 
-  @doc """
-  Deletes a condition from the ETS table by its ID.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.delete_condition(1)
-      :ok
-
-      iex> PpClient.ConditionManager.delete_condition(999)
-      {:error, :not_found}
-
-  """
   @spec delete_condition(non_neg_integer()) :: :ok | {:error, :not_found}
   def delete_condition(id) when is_integer(id) do
     GenServer.call(__MODULE__, {:delete_condition, id})
   end
 
-  @doc """
-  Enables a condition by its ID.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.enable_condition(1)
-      {:ok, %PpClient.Condition{id: 1, enabled: true}}
-
-  """
   @spec enable_condition(non_neg_integer()) :: {:ok, Condition.t()} | {:error, :not_found}
   def enable_condition(id) when is_integer(id) do
     GenServer.call(__MODULE__, {:enable_condition, id})
   end
 
-  @doc """
-  Disables a condition by its ID.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.disable_condition(1)
-      {:ok, %PpClient.Condition{id: 1, enabled: false}}
-
-  """
   @spec disable_condition(non_neg_integer()) :: {:ok, Condition.t()} | {:error, :not_found}
   def disable_condition(id) when is_integer(id) do
     GenServer.call(__MODULE__, {:disable_condition, id})
   end
 
-  @doc """
-  Checks if a condition exists for the given ID.
-
-  ## Examples
-
-      iex> PpClient.ConditionManager.exists?(1)
-      true
-
-      iex> PpClient.ConditionManager.exists?(999)
-      false
-
-  """
   @spec exists?(non_neg_integer()) :: boolean()
   def exists?(id) when is_integer(id) do
     case :ets.lookup(@table, id) do
@@ -179,12 +75,38 @@ defmodule PpClient.ConditionManager do
     end
   end
 
+  @spec get_connect_failed_hosts() :: [map()]
+  def get_connect_failed_hosts do
+    case :ets.whereis(:connect_failed) do
+      :undefined ->
+        []
+
+      _table ->
+        :connect_failed
+        |> :ets.tab2list()
+        |> Enum.map(fn {{_host, _port}, record} -> record end)
+        |> Enum.sort_by(fn record -> {-record.count, -record.timestamp} end)
+    end
+  end
+
+  @spec clear_connect_failed(String.t() | charlist(), non_neg_integer()) :: :ok
+  def clear_connect_failed(host, port) do
+    case :ets.whereis(:connect_failed) do
+      :undefined ->
+        :ok
+
+      _table ->
+        :ets.delete(:connect_failed, {host, port})
+        :ok
+    end
+  end
+
   ## GenServer Callbacks
 
   @impl true
   def init(_init_arg) do
-    load_conditions_from_config()
-    {:ok, %{next_id: 1}}
+    last_id = all_conditions() |> Enum.max_by(& &1.id, fn -> %{id: 0} end) |> Map.get(:id)
+    {:ok, %{next_id: last_id + 1}}
   end
 
   @impl true
@@ -258,14 +180,5 @@ defmodule PpClient.ConditionManager do
         Logger.warning("Condition with ID #{id} not found for disabling")
         {:reply, {:error, :not_found}, state}
     end
-  end
-
-  ## Private Functions
-
-  defp load_conditions_from_config do
-    # Load conditions from config file if it exists
-    # This can be extended to load from a conditions config file
-    # similar to how EndpointManager loads from pp_config.exs
-    :ok
   end
 end

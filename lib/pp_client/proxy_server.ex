@@ -7,7 +7,8 @@ defmodule PpClient.ProxyServer do
   - type: "socks5", enable: boolean, opts: [host: "127.0.0.1", port: 1088]
   """
 
-  defstruct [:type, :client_type, :enable, :opts]
+  @enforce_keys [:type, :opts]
+  defstruct type: nil, client_type: nil, enable: true, opts: nil
 
   @type client_type() :: :direct | :ws | :socks5
 
@@ -104,50 +105,51 @@ defmodule PpClient.ProxyServer do
   def enable(server), do: %{server | enable: true}
   def disable(server), do: %{server | enable: false}
 
-  @doc """
-  验证代理服务器配置
-  """
-  def validate(%__MODULE__{type: type, opts: opts} = server) do
-    case type do
-      "exps" ->
-        validate_exps(opts)
+  def new(opts) do
+    struct!(__MODULE__, opts) |> validate!()
+  end
 
-      "cf-workers" ->
-        validate_cf_workers(opts)
-
-      "socks5" ->
-        validate_socks5(opts)
-
-      _ ->
-        {:error, "Unknown proxy server type: #{type}"}
-    end
-    |> case do
-      :ok -> {:ok, server}
-      error -> error
+  def validate!(server) do
+    case validate(server) do
+      {:ok, server} -> server
+      {:error, reason} -> raise reason
     end
   end
 
-  defp validate_exps(%{uri: uri, encrypt_type: encrypt_type}) when is_binary(uri) do
-    if encrypt_type in [:none, :once] do
-      :ok
+  def validate(%__MODULE__{type: type} = server) do
+    case type do
+      "exps" -> validate_exps(server)
+      "cf-workers" -> validate_cf_workers(server)
+      "socks5" -> validate_socks5(server)
+      _ -> {:error, "Unknown server type: #{type}"}
+    end
+  end
+
+  defp validate_exps(%__MODULE__{opts: opts} = server) do
+    if is_binary(opts[:uri]) and opts[:encrypt_type] in [:none, :once] do
+      {:ok, %{server | client_type: :ws}}
     else
-      {:error, "Invalid encrypt_type for exps: #{inspect(encrypt_type)}"}
+      {:error, "Invalid exps opts"}
     end
   end
 
   defp validate_exps(_), do: {:error, "Invalid exps configuration"}
 
-  defp validate_cf_workers(%{uri: uri, password: password})
-       when is_binary(uri) and is_binary(password) do
-    :ok
+  defp validate_cf_workers(%__MODULE__{opts: opts} = server) do
+    if is_binary(opts[:uri]) and is_binary(opts[:password]) do
+      {:ok, %{server | client_type: :ws}}
+    else
+      {:error, "Invalid cf-workers configuration"}
+    end
   end
 
-  defp validate_cf_workers(_), do: {:error, "Invalid cf-workers configuration"}
+  defp validate_socks5(%__MODULE__{opts: opts} = server) do
+    port = opts[:port]
 
-  defp validate_socks5(%{host: host, port: port})
-       when is_binary(host) and is_integer(port) and port > 0 and port <= 65535 do
-    :ok
+    if is_binary(opts[:host]) and is_integer(port) and port > 0 and port <= 65535 do
+      {:ok, %{server | client_type: :socks5}}
+    else
+      {:error, "Invalid socks5 configuration"}
+    end
   end
-
-  defp validate_socks5(_), do: {:error, "Invalid socks5 configuration"}
 end

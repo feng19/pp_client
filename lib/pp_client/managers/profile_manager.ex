@@ -13,31 +13,13 @@ defmodule PpClient.ProfileManager do
 
   @table :profiles
 
-  ## Client API
+  ## Public API
 
-  @doc """
-  Starts the ProfileManager GenServer.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.start_link([])
-      {:ok, pid}
-
-  """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(init_arg) do
     GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  @doc """
-  Returns all profiles stored in the ETS table.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.all_profiles()
-      [%PpClient.ProxyProfile{name: "direct", ...}, ...]
-
-  """
   @spec all_profiles() :: [ProxyProfile.t()]
   def all_profiles do
     @table
@@ -46,18 +28,6 @@ defmodule PpClient.ProfileManager do
     |> Enum.sort_by(& &1.name)
   end
 
-  @doc """
-  Returns a profile by its name.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.get_profile("direct")
-      {:ok, %PpClient.ProxyProfile{name: "direct", ...}}
-
-      iex> PpClient.ProfileManager.get_profile("nonexistent")
-      {:error, :not_found}
-
-  """
   @spec get_profile(String.t()) :: {:ok, ProxyProfile.t()} | {:error, :not_found}
   def get_profile(name) when is_binary(name) do
     case :ets.lookup(@table, name) do
@@ -66,114 +36,37 @@ defmodule PpClient.ProfileManager do
     end
   end
 
-  @doc """
-  Returns all enabled profiles.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.enabled_profiles()
-      [%PpClient.ProxyProfile{name: "proxy1", enabled: true}, ...]
-
-  """
   @spec enabled_profiles() :: [ProxyProfile.t()]
   def enabled_profiles do
     all_profiles()
     |> Enum.filter(& &1.enabled)
   end
 
-  @doc """
-  Adds a new profile to the ETS table.
-
-  ## Examples
-
-      iex> profile = %PpClient.ProxyProfile{name: "proxy1", type: :remote, enabled: true, servers: []}
-      iex> PpClient.ProfileManager.add_profile(profile)
-      {:ok, %PpClient.ProxyProfile{name: "proxy1", ...}}
-
-      iex> PpClient.ProfileManager.add_profile(profile)
-      {:error, :already_exists}
-
-  """
   @spec add_profile(ProxyProfile.t()) :: {:ok, ProxyProfile.t()} | {:error, :already_exists}
   def add_profile(%ProxyProfile{name: name} = profile) when not is_nil(name) do
     GenServer.call(__MODULE__, {:add_profile, profile})
   end
 
-  @doc """
-  Updates an existing profile in the ETS table.
-
-  ## Examples
-
-      iex> profile = %PpClient.ProxyProfile{name: "proxy1", type: :remote, enabled: false, servers: []}
-      iex> PpClient.ProfileManager.update_profile(profile)
-      {:ok, %PpClient.ProxyProfile{name: "proxy1", ...}}
-
-      iex> PpClient.ProfileManager.update_profile(%PpClient.ProxyProfile{name: "nonexistent", ...})
-      {:error, :not_found}
-
-  """
   @spec update_profile(ProxyProfile.t()) :: {:ok, ProxyProfile.t()} | {:error, :not_found}
   def update_profile(%ProxyProfile{name: name} = profile) when not is_nil(name) do
     GenServer.call(__MODULE__, {:update_profile, profile})
   end
 
-  @doc """
-  Deletes a profile from the ETS table by its name.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.delete_profile("proxy1")
-      :ok
-
-      iex> PpClient.ProfileManager.delete_profile("nonexistent")
-      {:error, :not_found}
-
-  """
   @spec delete_profile(String.t()) :: :ok | {:error, :not_found}
   def delete_profile(name) when is_binary(name) do
     GenServer.call(__MODULE__, {:delete_profile, name})
   end
 
-  @doc """
-  Enables a profile by its name.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.enable_profile("proxy1")
-      {:ok, %PpClient.ProxyProfile{name: "proxy1", enabled: true}}
-
-  """
   @spec enable_profile(String.t()) :: {:ok, ProxyProfile.t()} | {:error, :not_found}
   def enable_profile(name) when is_binary(name) do
     GenServer.call(__MODULE__, {:enable_profile, name})
   end
 
-  @doc """
-  Disables a profile by its name.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.disable_profile("proxy1")
-      {:ok, %PpClient.ProxyProfile{name: "proxy1", enabled: false}}
-
-  """
   @spec disable_profile(String.t()) :: {:ok, ProxyProfile.t()} | {:error, :not_found}
   def disable_profile(name) when is_binary(name) do
     GenServer.call(__MODULE__, {:disable_profile, name})
   end
 
-  @doc """
-  Checks if a profile exists for the given name.
-
-  ## Examples
-
-      iex> PpClient.ProfileManager.exists?("direct")
-      true
-
-      iex> PpClient.ProfileManager.exists?("nonexistent")
-      false
-
-  """
   @spec exists?(String.t()) :: boolean()
   def exists?(name) when is_binary(name) do
     case :ets.lookup(@table, name) do

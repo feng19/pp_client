@@ -43,18 +43,21 @@ defmodule PpClient.DirectClient do
         {:noreply, %{state | remote: remote}}
 
       {:error, reason} ->
-        Logger.error("Direct connection failed: #{inspect(reason)}")
+        Logger.warning(
+          "Direct connection failed, target: #{inspect(target)}, reason: #{inspect(reason)}"
+        )
+
         {:stop, :normal, state}
     end
   end
 
   @impl true
-  def handle_cast({:binary, data}, %{socket: socket} = state) do
-    :gen_tcp.send(socket, data)
+  def handle_cast({:binary, data}, %{remote: remote} = state) do
+    :gen_tcp.send(remote, data)
     {:noreply, state}
   end
 
-  defp connect(%{host: host, port: port}), do: connect(host, port, 2)
+  defp connect({_, host, port}), do: connect(host, port, 2)
 
   defp connect(host, port, 0) do
     save_connect_failed_host(host, port)
@@ -62,7 +65,7 @@ defmodule PpClient.DirectClient do
   end
 
   defp connect(host, port, retry_times) do
-    case :gen_tcp.connect(host, port, [:binary, {:active, false}], 5000) do
+    case :gen_tcp.connect(to_charlist(host), port, [:binary, {:active, false}], 5000) do
       {:error, _error} -> connect(host, port, retry_times - 1)
       result -> result
     end

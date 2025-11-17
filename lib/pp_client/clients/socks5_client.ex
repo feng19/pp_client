@@ -13,11 +13,16 @@ defmodule PpClient.Socks5Client do
   @atype_ipv6 4
 
   def start_link(target, %{servers: servers}, parent) do
-    start_link(target, Enum.random(servers), parent)
+    server = Enum.random(servers)
+    start_link(target, [{:type, server.type} | server.opts], parent)
   end
 
-  def start_link(target, server, parent) do
-    GenServer.start_link(__MODULE__, server: server, target: target, parent: parent)
+  def start_link(target, setting, parent) when is_list(setting) do
+    start_link(target, Map.new(setting), parent)
+  end
+
+  def start_link(target, setting, parent) when is_map(setting) do
+    GenServer.start_link(__MODULE__, setting: setting, target: target, parent: parent)
   end
 
   def send(pid, data) do
@@ -25,8 +30,8 @@ defmodule PpClient.Socks5Client do
   end
 
   @impl true
-  def init(server: server, target: target, parent: parent) do
-    {:ok, %{socket: nil, parent: parent}, {:continue, {:connect_server, server, target}}}
+  def init(setting: setting, target: target, parent: parent) do
+    {:ok, %{socket: nil, parent: parent}, {:continue, {:connect_server, setting, target}}}
   end
 
   @impl true
@@ -40,8 +45,8 @@ defmodule PpClient.Socks5Client do
   end
 
   @impl true
-  def handle_continue({:connect_server, server, target}, %{parent: parent} = state) do
-    case connect(server, target) do
+  def handle_continue({:connect_server, setting, target}, %{parent: parent} = state) do
+    case connect(setting, target) do
       {:ok, socket} ->
         GenServer.cast(parent, :connected)
         {:noreply, %{state | socket: socket}}
@@ -57,8 +62,8 @@ defmodule PpClient.Socks5Client do
     {:noreply, state}
   end
 
-  defp connect(server, target) do
-    with {:ok, socket} <- establish_proxy_connection(server),
+  defp connect(setting, target) do
+    with {:ok, socket} <- establish_proxy_connection(setting),
          :ok <- perform_handshake(socket),
          :ok <- send_connect_request(socket, target),
          :ok <- receive_connect_response(socket) do

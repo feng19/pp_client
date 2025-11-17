@@ -47,43 +47,41 @@ defmodule PpClient.Condition do
         }
 
   def parse_conditions(text) do
-    conditions =
-      text
-      |> String.split("\n", trim: true)
-      |> Stream.reject(fn
-        "" -> true
-        "[" <> _ -> true
-        ";" <> _ -> true
-        "!" <> _ -> true
-        "@note " <> _ -> true
-        "@with " <> _ -> true
-        _ -> false
-      end)
-      |> Enum.reduce([], fn
-        "* +" <> profile, acc ->
-          [%__MODULE__{condition: :all, profile_name: profile, enabled: true} | acc]
+    text
+    |> String.split("\n", trim: true)
+    |> Stream.reject(fn
+      "" -> true
+      "[" <> _ -> true
+      ";" <> _ -> true
+      "!" <> _ -> true
+      "@note " <> _ -> true
+      "@with " <> _ -> true
+      _ -> false
+    end)
+    |> Enum.reduce([], fn
+      "* +" <> profile, acc ->
+        [%__MODULE__{condition: :all, profile_name: profile, enabled: true} | acc]
 
-        line, acc ->
-          [pattern, "+" <> profile] = String.split(line, " ", trim: true)
+      line, acc ->
+        [pattern, "+" <> profile] = String.split(line, " ", trim: true)
 
-          case pattern_to_regex(pattern) do
-            {:ok, regex} ->
-              condition = %__MODULE__{
-                condition: regex,
-                profile_name: profile,
-                enabled: true
-              }
+        case pattern_to_regex(pattern) do
+          {:ok, regex} ->
+            condition = %__MODULE__{
+              condition: regex,
+              profile_name: profile,
+              enabled: true
+            }
 
-              [condition | acc]
+            [condition | acc]
 
-            {:error, reason} ->
-              Logger.warning("lien: #{line}, parse error: #{inspect(reason)}")
-              acc
-          end
-      end)
-      |> Enum.reverse()
-
-    {:ok, conditions}
+          {:error, reason} ->
+            Logger.warning("lien: #{line}, parse error: #{inspect(reason)}")
+            acc
+        end
+    end)
+    |> Enum.reverse()
+    |> Enum.with_index(fn condition, index -> %{condition | id: index} end)
   end
 
   def pattern_to_regex(pattern) do
