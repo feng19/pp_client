@@ -84,6 +84,7 @@ defmodule PpClient.ProfileManager do
       :ets.insert_new(@table, {default.name, default})
     end
 
+    Logger.info("ProfileManager started.")
     {:ok, %{}}
   end
 

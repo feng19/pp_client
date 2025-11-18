@@ -2,6 +2,6 @@ defmodule PpClientWeb.PageController do
   use PpClientWeb, :controller
 
   def home(conn, _params) do
-    render(conn, :home)
+    redirect(conn, to: ~p"/admin/conditions")
   end
 end

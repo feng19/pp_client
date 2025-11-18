@@ -14,19 +14,28 @@ defmodule PpClient.Application do
   @impl true
   def start(_type, _args) do
     init_ets_tables()
-    load_config()
+    load_config(@config_filename)
 
-    children = [
-      PpClientWeb.Telemetry,
-      {Phoenix.PubSub, name: PpClient.PubSub},
-      PpClient.ProfileManager,
-      PpClient.ConditionManager,
-      PpClient.EndpointManager,
-      PpClient.Cache,
-      # Start to serve requests, typically the last entry
-      PpClientWeb.Endpoint,
-      PpClient.EndpointSupervisor
-    ]
+    web_children =
+      if Application.get_env(:pp_client, :with_web, true) do
+        [
+          PpClientWeb.Telemetry,
+          {Phoenix.PubSub, name: PpClient.PubSub},
+          # Start to serve requests, typically the last entry
+          PpClientWeb.Endpoint
+        ]
+      else
+        Application.stop(:phoenix)
+        []
+      end
+
+    children =
+      [
+        PpClient.ProfileManager,
+        PpClient.ConditionManager,
+        PpClient.EndpointManager,
+        PpClient.Cache
+      ] ++ web_children ++ [PpClient.EndpointSupervisor]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: @supervisor)
   end
@@ -47,14 +56,14 @@ defmodule PpClient.Application do
     :ets.new(:connect_failed, [:set, :public, :named_table, {:read_concurrency, true}])
   end
 
-  defp load_config do
-    if File.exists?(@config_filename) do
-      {config, _} = Code.eval_file(@config_filename)
+  defp load_config(filename) do
+    if File.exists?(filename) do
+      {config, _} = Code.eval_file(filename)
       load_endpoints(config)
       load_profiles(config)
       load_conditions(config)
     else
-      Logger.warning("NOT found the #{@config_filename}")
+      Logger.warning("NOT found the #{filename}")
     end
   end
 

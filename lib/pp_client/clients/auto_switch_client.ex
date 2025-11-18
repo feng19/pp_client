@@ -2,22 +2,41 @@ defmodule PpClient.AutoSwitchClient do
   @moduledoc """
   Auto Switch Client
   """
-  alias PpClient.{Cache, DirectClient, Socks5Client, WSClient}
+  alias PpClient.{Cache, DirectClient, ProfileManager, Socks5Client, WSClient}
 
-  def start_link(target, _opts, parent \\ self()) do
-    case route(target) do
-      :direct ->
-        {:ok, pid} = DirectClient.start_link(target, parent)
-        {:ok, {DirectClient, pid}}
+  def start_link(target, _opts, parent \\ self())
 
-      {:ws, setting} ->
-        {:ok, ws_client} = WSClient.start_link(target, setting, parent)
-        {:ok, {WSClient, ws_client}}
+  def start_link(target, [], parent) do
+    target |> route() |> do_start_link(target, parent)
+  end
 
-      {:socks5, setting} ->
-        {:ok, ws_client} = Socks5Client.start_link(target, setting, parent)
-        {:ok, {Socks5Client, ws_client}}
+  def start_link(target, opts, parent) do
+    %{profile: profile_name} = Map.new(opts)
+
+    case ProfileManager.get_profile(profile_name) do
+      {:ok, %{enabled: true, type: :direct}} ->
+        :direct
+
+      {:ok, %{enabled: true, servers: servers}} ->
+        server = Enum.random(servers)
+        {server.client_type, [{:type, server.type} | server.opts]}
     end
+    |> do_start_link(target, parent)
+  end
+
+  defp do_start_link(:direct, target, parent) do
+    {:ok, pid} = DirectClient.start_link(target, parent)
+    {:ok, {DirectClient, pid}}
+  end
+
+  defp do_start_link({:ws, setting}, target, parent) do
+    {:ok, ws_client} = WSClient.start_link(target, setting, parent)
+    {:ok, {WSClient, ws_client}}
+  end
+
+  defp do_start_link({:socks5, setting}, target, parent) do
+    {:ok, ws_client} = Socks5Client.start_link(target, setting, parent)
+    {:ok, {Socks5Client, ws_client}}
   end
 
   def route({_type, host, _port}), do: route(host)

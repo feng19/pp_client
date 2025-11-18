@@ -2,7 +2,7 @@ defmodule PpClient.AutoDetect do
   @moduledoc false
   use ThousandIsland.Handler
   require Logger
-  alias PpClient.{Http, Socks5}
+  alias PpClient.{AutoSwitchClient, Http, Socks5}
 
   @impl ThousandIsland.Handler
   def handle_connection(_socket, opts) do
@@ -32,7 +32,7 @@ defmodule PpClient.AutoDetect do
   end
 
   def handle_data(data, _socket, {:connected, ws_client} = state) do
-    PpClient.WSClient.send(ws_client, data)
+    AutoSwitchClient.send(ws_client, data)
     {:continue, state}
   end
 

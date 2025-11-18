@@ -21,6 +21,7 @@ defmodule PpClient.EndpointManager do
 
   @impl true
   def init(_opts) do
+    Logger.info("EndpointManager started.")
     {:ok, %{}}
   end
 

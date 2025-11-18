@@ -106,6 +106,7 @@ defmodule PpClient.ConditionManager do
   @impl true
   def init(_init_arg) do
     last_id = all_conditions() |> Enum.max_by(& &1.id, fn -> %{id: 0} end) |> Map.get(:id)
+    Logger.info("ConditionManager started.")
     {:ok, %{next_id: last_id + 1}}
   end
 
