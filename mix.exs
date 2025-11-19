@@ -41,7 +41,7 @@ defmodule PpClient.MixProject do
       app: nil,
       main_module: PpClient,
       include_priv_for: [:pp_client],
-      emu_args: "+K true -name pp_client2@127.0.0.1"
+      emu_args: "+K true -detached -name pp_client@127.0.0.1"
     ]
   end
 
