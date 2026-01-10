@@ -6,7 +6,6 @@ defmodule PpClient do
   def app_version(), do: @app_version
 
   def main(_) do
-    # Application.put_env(:pp_client, :with_web, false)
     {:ok, _} = Application.ensure_all_started(:elixir)
     extract_priv!()
 

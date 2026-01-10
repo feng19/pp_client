@@ -14,15 +14,15 @@ defmodule PpClient.Application do
   @impl true
   def start(_type, _args) do
     init_ets_tables()
-    load_config(@config_filename)
+    %{web: web_opts} = load_config(@config_filename)
 
     web_children =
-      if Application.get_env(:pp_client, :with_web, true) do
+      if web_opts[:server] do
         [
           PpClientWeb.Telemetry,
           {Phoenix.PubSub, name: PpClient.PubSub},
           # Start to serve requests, typically the last entry
-          PpClientWeb.Endpoint
+          {PpClientWeb.Endpoint, Map.to_list(web_opts)}
         ]
       else
         Application.stop(:phoenix)
@@ -62,6 +62,7 @@ defmodule PpClient.Application do
       load_endpoints(config)
       load_profiles(config)
       load_conditions(config)
+      config
     else
       Logger.warning("NOT found the #{filename}")
     end
