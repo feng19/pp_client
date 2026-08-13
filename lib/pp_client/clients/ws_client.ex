@@ -1,8 +1,9 @@
 defmodule PpClient.WSClient do
   @moduledoc false
   use Wind.Client
+  require Logger
   alias Plug.Crypto.MessageEncryptor
-  alias PpClient.{BrowserHeaders, TLSProfile}
+  alias PpClient.{BrowserHeaders, Redact, TLSProfile}
 
   @sign_secret "90de3456asxdfrtg"
   @domain 0x03
@@ -40,7 +41,10 @@ defmodule PpClient.WSClient do
         case_sensitive_headers: true,
         transport_opts: TLSProfile.transport_opts(uri, setting)
       ],
-      pp: %{setting: setting, first_frame: first_frame, parent: parent}
+      # The setting is kept for diagnostics only — everything the tunnel needs
+      # from it is already baked into `headers` and `first_frame` above — so the
+      # copy in state is the redacted one.
+      pp: %{setting: Redact.setting(setting), first_frame: first_frame, parent: parent}
     )
   end
 
@@ -66,6 +70,11 @@ defmodule PpClient.WSClient do
     %{first_frame: first_frame, parent: parent} = Keyword.fetch!(state.opts, :pp)
     GenServer.cast(parent, :connected)
 
+    # The upgrade request is on the wire and Wind reads the headers only to send
+    # it, so the credential one of them carries has no reason to sit in state for
+    # the life of the tunnel.
+    state = %{state | opts: Keyword.replace_lazy(state.opts, :headers, &Redact.headers/1)}
+
     if first_frame do
       {:reply, first_frame, state}
     else
@@ -82,6 +91,41 @@ defmodule PpClient.WSClient do
     close(state)
     {:noreply, state}
   end
+
+  # The upstream going away is how a tunnel normally ends — the target hung up,
+  # the worker was recycled, the client vanished. Wind's default `handle_error/2`
+  # stops with `{:error, reason}`, which logs a crash report carrying the whole
+  # Mint connection and TLS profile. Tell the owner and stop quietly instead.
+  @impl true
+  def handle_error(%Mint.TransportError{reason: reason}, state)
+      when reason in [:closed, :econnreset, :epipe, :etimedout] do
+    close(state)
+    {:stop, :normal, state}
+  end
+
+  def handle_error(reason, state) do
+    uri = Keyword.fetch!(state.opts, :uri)
+    Logger.warning("ws client #{uri} error: #{inspect(reason)}")
+    close(state)
+    {:stop, :normal, state}
+  end
+
+  # Until the upgrade lands there is no websocket, so Wind's decode clause does
+  # not match and its catch-all would stop with `{:error, message}`. A transport
+  # that drops mid-handshake ends the tunnel the same way as one that drops
+  # mid-frame; anything still buffered arrived as its own message before this.
+  @impl true
+  def handle_info({closed, _socket}, state) when closed in [:ssl_closed, :tcp_closed] do
+    close(state)
+    {:stop, :normal, state}
+  end
+
+  def handle_info({error, _socket, reason}, state) when error in [:ssl_error, :tcp_error] do
+    handle_error(reason, state)
+  end
+
+  # Wind marks handle_info/2 overridable; everything else is its own.
+  def handle_info(message, state), do: super(message, state)
 
   @impl true
   def handle_cast({:attach, socket}, state) do

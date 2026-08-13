@@ -162,4 +162,25 @@ defmodule PpClient.ProxyServer do
       {:error, "Invalid socks5 configuration"}
     end
   end
+
+  # `opts` mixes the credential in with the endpoint, so a server cannot be
+  # inspected wholesale — a profile in a crash report or a route in a log line
+  # would carry the password. Print every field, with the secrets replaced.
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    alias PpClient.Redact
+
+    def inspect(server, opts) do
+      fields =
+        server
+        |> Map.from_struct()
+        |> Map.put(:opts, Redact.setting(server.opts))
+        |> Map.to_list()
+
+      container_doc("#PpClient.ProxyServer<", fields, ">", opts, &field/2)
+    end
+
+    defp field({key, value}, opts), do: concat([to_string(key), ": ", to_doc(value, opts)])
+  end
 end

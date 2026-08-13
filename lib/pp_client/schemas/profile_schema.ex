@@ -20,9 +20,12 @@ defmodule PpClient.Schemas.ProfileSchema do
       field :uri, :string
       field :host, :string
       field :port, :integer
-      field :password, :string
+      # This struct and the changesets built from it are carried in LiveView
+      # assigns, which are written to the log whole when the process crashes.
+      # `redact: true` covers the struct, plus a changeset's `changes` and `data`.
+      field :password, :string, redact: true
       field :encrypt_type, Ecto.Enum, values: [:none, :once], default: :none
-      field :encrypt_key, :string
+      field :encrypt_key, :string, redact: true
     end
   end
 
@@ -199,6 +202,9 @@ defmodule PpClient.Schemas.ProfileSchema do
           %{}
       end
 
-    Map.merge(base, fields)
+    # A `Server` struct rather than the plain map this used to build: the schema
+    # is what the edit form is loaded from, so the credentials in it are only
+    # covered by the fields' `redact: true` while it really is that struct.
+    struct!(__MODULE__.Server, Map.merge(base, fields))
   end
 end

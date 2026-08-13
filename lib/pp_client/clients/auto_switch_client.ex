@@ -10,7 +10,7 @@ defmodule PpClient.AutoSwitchClient do
       because framing and the Mint connection live in it.
   """
   require Logger
-  alias PpClient.{Cache, DirectClient, ProfileManager, Socks5Client, WSClient}
+  alias PpClient.{Cache, DirectClient, ProfileManager, Redact, Socks5Client, WSClient}
 
   @type conn :: {:tcp, :gen_tcp.socket()} | {WSClient, pid()}
 
@@ -66,9 +66,15 @@ defmodule PpClient.AutoSwitchClient do
   end
 
   defp do_start_link(route, target, _parent) do
-    Logger.warning("Unsupported route: #{inspect(route)}, target: #{inspect(target)}")
+    # A route carries the server's raw setting, credential included.
+    Logger.warning("Unsupported route: #{inspect(redact(route))}, target: #{inspect(target)}")
     {:error, {:unsupported_route, route}}
   end
+
+  defp redact({client_type, setting}) when is_map(setting),
+    do: {client_type, Redact.setting(setting)}
+
+  defp redact(route), do: route
 
   def route({_type, host, _port}), do: route(host)
 

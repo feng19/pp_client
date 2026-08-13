@@ -325,7 +325,7 @@
                       <.input
                         name={"profile_schema[servers][#{index}][encrypt_key]"}
                         id={"profile_schema_servers_#{index}_encrypt_key"}
-                        value={server_data["encrypt_key"]}
+                        value={Redact.reveal(server_data["encrypt_key"])}
                         type="text"
                         label="Encryption key (optional)"
                         placeholder="encryption-key"
@@ -347,7 +347,7 @@
                       <.input
                         name={"profile_schema[servers][#{index}][password]"}
                         id={"profile_schema_servers_#{index}_password"}
-                        value={server_data["password"]}
+                        value={Redact.reveal(server_data["password"])}
                         type="password"
                         label="Password"
                         placeholder="password"

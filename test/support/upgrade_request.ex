@@ -39,8 +39,8 @@ defmodule PpClient.Test.UpgradeRequest do
       {:ok, sock} = :gen_tcp.accept(lsock, 5000)
       {:ok, data} = :gen_tcp.recv(sock, 0, 5000)
 
-      # Shut the client down before closing the socket, otherwise it observes a
-      # :tcp_closed it cannot handle and logs a GenServer crash into the suite.
+      # The request is already captured, so shut the client down before closing
+      # the socket rather than leaving it to notice the close and tell its owner.
       stop(owner)
       :gen_tcp.close(sock)
       parse(data)

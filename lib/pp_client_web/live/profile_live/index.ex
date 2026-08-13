@@ -2,6 +2,7 @@ defmodule PpClientWeb.ProfileLive.Index do
   use PpClientWeb, :live_view
 
   alias PpClient.ProfileManager
+  alias PpClient.Redact
   alias PpClient.Schemas.ProfileSchema
 
   @impl true
@@ -44,7 +45,7 @@ defmodule PpClientWeb.ProfileLive.Index do
 
     socket
     |> assign(:page_title, "New Profile")
-    |> assign(:form, to_form(changeset))
+    |> assign(:form, redacted_form(changeset))
     |> assign(:editing_name, nil)
     |> assign(:server_forms, [{0, default_server}])
   end
@@ -72,7 +73,7 @@ defmodule PpClientWeb.ProfileLive.Index do
                   |> Map.new()
                 end
 
-              {idx, server_data}
+              {idx, Redact.form_params(server_data)}
             end)
           else
             []
@@ -80,7 +81,7 @@ defmodule PpClientWeb.ProfileLive.Index do
 
         socket
         |> assign(:page_title, "Edit Profile")
-        |> assign(:form, to_form(changeset))
+        |> assign(:form, redacted_form(changeset))
         |> assign(:editing_name, name)
         |> assign(:server_forms, server_forms)
 
@@ -117,13 +118,13 @@ defmodule PpClientWeb.ProfileLive.Index do
           servers_params
           |> Enum.sort_by(fn {k, _v} -> String.to_integer(k) end)
           |> Enum.map(fn {idx, server_data} ->
-            {String.to_integer(idx), server_data}
+            {String.to_integer(idx), Redact.form_params(server_data)}
           end)
       end
 
     socket =
       socket
-      |> assign(:form, to_form(changeset))
+      |> assign(:form, redacted_form(changeset))
       |> assign(:server_forms, server_forms)
 
     {:noreply, socket}
@@ -161,13 +162,13 @@ defmodule PpClientWeb.ProfileLive.Index do
               servers_params
               |> Enum.sort_by(fn {k, _v} -> String.to_integer(k) end)
               |> Enum.map(fn {idx, server_data} ->
-                {String.to_integer(idx), server_data}
+                {String.to_integer(idx), Redact.form_params(server_data)}
               end)
           end
 
         socket =
           socket
-          |> assign(:form, to_form(changeset))
+          |> assign(:form, redacted_form(changeset))
           |> assign(:server_forms, server_forms)
 
         {:noreply, socket}
@@ -251,6 +252,15 @@ defmodule PpClientWeb.ProfileLive.Index do
   @impl true
   def handle_info({:profile_updated, _profile}, socket) do
     {:noreply, load_profiles(socket)}
+  end
+
+  # `to_form/1` copies the submitted params onto the form struct, credentials and
+  # all, and a LiveView's assigns are written to the log whole when the process
+  # crashes. The credential inputs render from `@server_forms` rather than from
+  # the form, so nothing reads the copy the form keeps — see `Redact.params/1`.
+  defp redacted_form(changeset) do
+    form = to_form(changeset)
+    %{form | params: Redact.params(form.params)}
   end
 
   defp save_profile(socket, profile) do

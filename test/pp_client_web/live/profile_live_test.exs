@@ -594,6 +594,68 @@ defmodule PpClientWeb.ProfileLiveTest do
     end
   end
 
+  describe "Credentials in LiveView state" do
+    @password "sup3r-s3cret-cf-workers-password"
+
+    setup do
+      profile = %ProxyProfile{
+        name: "redact-test",
+        type: :remote,
+        enabled: true,
+        servers: [ProxyServer.cf_workers("wss://worker.example.com", @password)]
+      }
+
+      ProfileManager.add_profile(profile)
+      :ok
+    end
+
+    test "the edit form still renders the stored password", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/profiles/redact-test/edit")
+
+      assert html =~ @password
+    end
+
+    test "a crash would not print the stored password", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/profiles/redact-test/edit")
+
+      refute printed_state(view) =~ @password
+    end
+
+    test "a crash would not print a password being typed", %{conn: conn} do
+      typed = "just-typed-#{@password}"
+
+      {:ok, view, _html} = live(conn, ~p"/admin/profiles/redact-test/edit")
+
+      html =
+        view
+        |> form("#profile-form",
+          profile_schema: %{
+            name: "redact-test",
+            type: :remote,
+            servers: %{
+              "0" => %{
+                type: "cf-workers",
+                uri: "wss://worker.example.com",
+                password: typed
+              }
+            }
+          }
+        )
+        |> render_change()
+
+      # The field keeps what was typed into it, and the state still does not say what.
+      assert html =~ typed
+      refute printed_state(view) =~ typed
+    end
+
+    # Everything a crash report would write out: assigns, the form, the changeset.
+    defp printed_state(view) do
+      view.pid
+      |> :sys.get_state()
+      |> inspect(limit: :infinity, printable_limit: :infinity)
+    end
+  end
+
   describe "Real-time Updates" do
     test "receives profile updates via PubSub", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
