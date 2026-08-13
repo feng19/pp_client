@@ -1,5 +1,7 @@
 import Config
 
+config :pp_client, with_web: true
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

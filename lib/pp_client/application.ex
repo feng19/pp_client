@@ -17,7 +17,7 @@ defmodule PpClient.Application do
     load_config(@config_filename)
 
     web_children =
-      if Application.get_env(:pp_client, :with_web, true) do
+      if Application.get_env(:pp_client, :with_web, false) do
         [
           PpClientWeb.Telemetry,
           {Phoenix.PubSub, name: PpClient.PubSub},

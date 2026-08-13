@@ -6,8 +6,8 @@ defmodule PpClient do
   def app_version(), do: @app_version
 
   def main(_) do
-    # Application.put_env(:pp_client, :with_web, false)
     {:ok, _} = Application.ensure_all_started(:elixir)
+    Application.put_env(:pp_client, :with_web, with_web?(), persistent: true)
     extract_priv!()
 
     start()
@@ -20,6 +20,14 @@ defmodule PpClient do
 
   def start, do: Application.ensure_all_started(:pp_client)
   def stop, do: System.halt(0)
+
+  @doc false
+  def with_web? do
+    case System.get_env("PP_WITH_WEB") do
+      nil -> false
+      value -> String.downcase(String.trim(value)) in ~w(1 true yes y on)
+    end
+  end
 
   defp extract_priv!() do
     archive_dir = Path.join(tmp_path(), "escript")

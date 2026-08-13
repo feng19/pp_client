@@ -16,9 +16,7 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
-if System.get_env("PHX_SERVER") do
-  config :pp_client, PpClientWeb.Endpoint, server: true
-end
+config :pp_client, PpClientWeb.Endpoint, server: true
 
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -31,7 +29,7 @@ if config_env() == :prod do
       "uY27YRAMPWsGJVl04ds9tJSuvYxTzmU0e/SUdeIenhx2lRkLqPCfN6LmjCL933h7"
 
   host = System.get_env("PHX_HOST") || "localhost"
-  port = String.to_integer(System.get_env("PORT") || "4000")
+  port = String.to_integer(System.get_env("PORT") || "8081")
 
   config :pp_client, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
