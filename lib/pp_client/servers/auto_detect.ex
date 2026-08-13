@@ -1,8 +1,8 @@
 defmodule PpClient.AutoDetect do
   @moduledoc false
   use ThousandIsland.Handler
-  require Logger
-  alias PpClient.{AutoSwitchClient, Http, Socks5}
+  use PpClient.Relay
+  alias PpClient.{Http, Relay, Socks5}
 
   @impl ThousandIsland.Handler
   def handle_connection(_socket, opts) do
@@ -31,9 +31,8 @@ defmodule PpClient.AutoDetect do
     {:close, nil}
   end
 
-  def handle_data(data, _socket, {:connected, ws_client} = state) do
-    AutoSwitchClient.send(ws_client, data)
-    {:continue, state}
+  def handle_data(data, _socket, {:connected, client} = state) do
+    Relay.forward(client, data, state)
   end
 
   def handle_data(request, socket, state) do
@@ -51,11 +50,6 @@ defmodule PpClient.AutoDetect do
     else
       {:close, nil}
     end
-  end
-
-  @impl GenServer
-  def handle_info({:EXIT, _, _}, {socket, state}) do
-    {:stop, :normal, {socket, state}}
   end
 
   defp set_type_module(module) do

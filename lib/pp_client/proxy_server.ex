@@ -126,22 +126,32 @@ defmodule PpClient.ProxyServer do
   end
 
   defp validate_exps(%__MODULE__{opts: opts} = server) do
-    if is_binary(opts[:uri]) and opts[:encrypt_type] in [:none, :once] do
-      {:ok, %{server | client_type: :ws}}
-    else
-      {:error, "Invalid exps opts"}
+    cond do
+      not ws_uri?(opts[:uri]) -> {:error, "Invalid exps uri: #{inspect(opts[:uri])}"}
+      opts[:encrypt_type] not in [:none, :once] -> {:error, "Invalid exps opts"}
+      true -> {:ok, %{server | client_type: :ws}}
     end
   end
-
-  defp validate_exps(_), do: {:error, "Invalid exps configuration"}
 
   defp validate_cf_workers(%__MODULE__{opts: opts} = server) do
-    if is_binary(opts[:uri]) and is_binary(opts[:password]) do
-      {:ok, %{server | client_type: :ws}}
-    else
-      {:error, "Invalid cf-workers configuration"}
+    cond do
+      not ws_uri?(opts[:uri]) -> {:error, "Invalid cf-workers uri: #{inspect(opts[:uri])}"}
+      not is_binary(opts[:password]) -> {:error, "Invalid cf-workers configuration"}
+      true -> {:ok, %{server | client_type: :ws}}
     end
   end
+
+  defp ws_uri?(uri) when is_binary(uri) do
+    case URI.parse(uri) do
+      %URI{scheme: scheme, host: host} when scheme in ["ws", "wss"] and is_binary(host) -> true
+      _ -> false
+    end
+  end
+
+  defp ws_uri?(%URI{scheme: scheme, host: host}) when scheme in ["ws", "wss"] and is_binary(host),
+    do: true
+
+  defp ws_uri?(_), do: false
 
   defp validate_socks5(%__MODULE__{opts: opts} = server) do
     port = opts[:port]

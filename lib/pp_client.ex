@@ -11,7 +11,7 @@ defmodule PpClient do
     extract_priv!()
 
     start()
-    IO.puts("PP Client started.")
+    IO.puts("PP(#{@app_version}) Client started.")
 
     receive do
       :stop -> :stop

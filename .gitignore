@@ -38,3 +38,4 @@ pp_config.exs
 pp.exs
 /pp_client
 /burrito_out/
+*.bak

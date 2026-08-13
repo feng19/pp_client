@@ -80,6 +80,7 @@
                 <th class="w-20">端口</th>
                 <th class="w-32">类型</th>
                 <th class="w-32">IP 地址</th>
+                <th class="w-32">绑定 Profile</th>
                 <th class="w-24">状态</th>
                 <th class="w-24">运行状态</th>
                 <th class="text-right">操作</th>
@@ -127,6 +128,18 @@
                   </td>
                   <td>
                     <select
+                      name="profile"
+                      form="new-endpoint-form"
+                      class="select select-bordered select-sm w-full"
+                    >
+                      <option value="">无</option>
+                      <option :for={profile <- @profiles} value={profile.name}>
+                        {profile.name}
+                      </option>
+                    </select>
+                  </td>
+                  <td>
+                    <select
                       name="enable"
                       form="new-endpoint-form"
                       class="select select-bordered select-sm w-24"
@@ -140,6 +153,9 @@
                       <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
                       未创建
                     </span>
+                  </td>
+                  <td>
+                    <span class="text-xs text-base-content/60">待创建</span>
                   </td>
                   <td>
                     <form id="new-endpoint-form" phx-submit="save_new">
@@ -162,7 +178,7 @@
               <% end %>
 
               <tr :if={@endpoints_empty? && !@show_new_form} id="empty-state">
-                <td colspan="6" class="text-center py-8 text-base-content/60">
+                <td colspan="7" class="text-center py-8 text-base-content/60">
                   <%= if @search_query != "" || @filter_status != "all" do %>
                     没有找到匹配的 Endpoint
                   <% else %>
@@ -210,6 +226,22 @@
                       placeholder="127.0.0.1"
                       required
                     />
+                  </td>
+                  <td>
+                    <select
+                      name="profile"
+                      form={"edit-form-#{endpoint.port}"}
+                      class="select select-bordered select-sm w-full"
+                    >
+                      <option value="">无</option>
+                      <option
+                        :for={profile <- @profiles}
+                        value={profile.name}
+                        selected={Keyword.get(endpoint.options, :profile) == profile.name}
+                      >
+                        {profile.name}
+                      </option>
+                    </select>
                   </td>
                   <td>
                     <select
@@ -265,6 +297,13 @@
                     </span>
                   </td>
                   <td class="font-mono text-sm">{format_ip(endpoint.ip)}</td>
+                  <td>
+                    <%= if profile_name = Keyword.get(endpoint.options, :profile) do %>
+                      <span class="badge badge-primary badge-sm">{profile_name}</span>
+                    <% else %>
+                      <span class="text-xs text-base-content/40">无</span>
+                    <% end %>
+                  </td>
                   <td>
                     <%= if endpoint.enable do %>
                       <span class="badge badge-success gap-1 whitespace-nowrap">
@@ -384,6 +423,15 @@
                 />
               </div>
               <div>
+                <label class="label label-text text-xs">绑定 Profile</label>
+                <select name="profile" class="select select-bordered select-sm w-full">
+                  <option value="">无</option>
+                  <option :for={profile <- @profiles} value={profile.name}>
+                    {profile.name}
+                  </option>
+                </select>
+              </div>
+              <div>
                 <label class="label label-text text-xs">状态</label>
                 <select name="enable" class="select select-bordered select-sm w-full">
                   <option value="true" selected>已启用</option>
@@ -473,6 +521,19 @@
                   />
                 </div>
                 <div>
+                  <label class="label label-text text-xs">绑定 Profile</label>
+                  <select name="profile" class="select select-bordered select-sm w-full">
+                    <option value="">无</option>
+                    <option
+                      :for={profile <- @profiles}
+                      value={profile.name}
+                      selected={Keyword.get(endpoint.options, :profile) == profile.name}
+                    >
+                      {profile.name}
+                    </option>
+                  </select>
+                </div>
+                <div>
                   <label class="label label-text text-xs">状态</label>
                   <select name="enable" class="select select-bordered select-sm w-full">
                     <option value="true" selected={endpoint.enable}>已启用</option>
@@ -522,8 +583,14 @@
                   </span>
                 <% end %>
               </div>
-              <div class="text-sm text-base-content/70 mb-3">
+              <div class="text-sm text-base-content/70 mb-3 space-y-1">
                 <p class="font-mono">{format_ip(endpoint.ip)}</p>
+                <%= if profile_name = Keyword.get(endpoint.options, :profile) do %>
+                  <p class="flex items-center gap-1">
+                    <span class="text-xs text-base-content/50">Profile:</span>
+                    <span class="badge badge-primary badge-xs">{profile_name}</span>
+                  </p>
+                <% end %>
               </div>
               <div class="flex gap-2 flex-wrap">
                 <button

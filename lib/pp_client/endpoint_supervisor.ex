@@ -1,6 +1,5 @@
 defmodule PpClient.EndpointSupervisor do
   use Supervisor
-  require Logger
   alias PpClient.{Endpoint, EndpointManager}
 
   def start_link(init_arg) do

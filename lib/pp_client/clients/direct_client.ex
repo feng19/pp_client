@@ -1,73 +1,46 @@
 defmodule PpClient.DirectClient do
   @moduledoc """
   Direct Client
+
+  `connect/2` runs in the caller's process, so the caller ends up owning the
+  socket and relays both directions itself — see `PpClient.Relay`.
   """
-  use GenServer
   require Logger
+  alias PpClient.Relay
 
-  def start_link(target, parent) do
-    GenServer.start_link(__MODULE__, target: target, parent: parent)
-  end
+  @connect_timeout 10_000
+  @connect_opts [:binary, packet: :raw, active: false, nodelay: true]
+  @attempts 2
 
-  def send(pid, data) do
-    GenServer.cast(pid, {:binary, data})
-  end
+  @spec connect({term(), String.t(), :inet.port_number()}, pid()) ::
+          {:ok, :gen_tcp.socket()} | {:error, term()}
+  def connect({_type, host, port}, owner), do: connect(host, port, owner, @attempts)
 
-  @impl true
-  def init(target: target, parent: parent) do
-    {:ok, %{remote: nil, parent: parent}, {:continue, {:connect_server, target}}}
-  end
-
-  @impl true
-  def handle_info({:tcp, _socket, data}, %{remote: remote, parent: parent} = state) do
-    :ok = :inet.setopts(remote, active: :once)
-    GenServer.cast(parent, {:send, data})
-    {:noreply, state}
-  end
-
-  def handle_info({:tcp_closed, _}, state), do: {:stop, :normal, state}
-
-  def handle_info({:tcp_error, _, reason}, state) do
-    Logger.error(inspect(reason))
-    {:stop, :normal, state}
-  end
-
-  def handle_info(_Info, state), do: {:ok, state}
-
-  @impl true
-  def handle_continue({:connect_server, target}, %{parent: parent} = state) do
-    case connect(target) do
-      {:ok, remote} ->
-        :ok = :inet.setopts(remote, active: :once)
-        GenServer.cast(parent, :connected)
-        {:noreply, %{state | remote: remote}}
-
-      {:error, reason} ->
-        Logger.warning(
-          "Direct connection failed, target: #{inspect(target)}, reason: #{inspect(reason)}"
-        )
-
-        {:stop, :normal, state}
-    end
-  end
-
-  @impl true
-  def handle_cast({:binary, data}, %{remote: remote} = state) do
-    :gen_tcp.send(remote, data)
-    {:noreply, state}
-  end
-
-  defp connect({_, host, port}), do: connect(host, port, 2)
-
-  defp connect(host, port, 0) do
+  defp connect(host, port, _owner, 0) do
     save_connect_failed_host(host, port)
     {:error, :connect_failure}
   end
 
-  defp connect(host, port, retry_times) do
-    case :gen_tcp.connect(to_charlist(host), port, [:binary, {:active, false}], 5000) do
-      {:error, _error} -> connect(host, port, retry_times - 1)
-      result -> result
+  defp connect(host, port, owner, attempts_left) do
+    case :gen_tcp.connect(connect_address(host), port, @connect_opts, @connect_timeout) do
+      {:ok, socket} ->
+        Relay.attach(socket, owner)
+
+      {:error, reason} ->
+        Logger.debug("Direct connect to #{host}:#{port} failed: #{inspect(reason)}")
+        connect(host, port, owner, attempts_left - 1)
+    end
+  end
+
+  # gen_tcp infers the address family from a parsed address, so an IPv6 literal
+  # has to go in as a tuple — as a charlist it would need an explicit `:inet6`
+  # and otherwise fails resolution with `:nxdomain`.
+  defp connect_address(host) do
+    charlist = to_charlist(host)
+
+    case :inet.parse_address(charlist) do
+      {:ok, ip} -> ip
+      {:error, :einval} -> charlist
     end
   end
 

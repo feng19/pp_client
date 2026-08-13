@@ -3,6 +3,11 @@ defmodule PpClient.Endpoint do
   Endpoint struct
   """
 
+  # Idle timeout for a proxied connection. Thousand Island only counts client
+  # reads towards it, so `PpClient.Relay.touch/1` re-arms it on upstream traffic
+  # as well, making this a real "nothing happened in either direction" timeout.
+  @read_timeout 300_000
+
   defstruct enable: true,
             type: :socks5,
             ip: {127, 0, 0, 1},
@@ -38,8 +43,9 @@ defmodule PpClient.Endpoint do
       end
 
     ThousandIsland.child_spec(
-      transport_options: [ip: ip],
+      transport_options: [ip: ip, nodelay: true],
       port: port,
+      read_timeout: @read_timeout,
       handler_module: handler,
       handler_options: options
     )

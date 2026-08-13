@@ -2,6 +2,7 @@ defmodule PpClientWeb.EndpointLive.Index do
   use PpClientWeb, :live_view
 
   alias PpClient.EndpointManager
+  alias PpClient.ProfileManager
   alias PpClient.Schemas.EndpointSchema
 
   @impl true
@@ -19,6 +20,7 @@ defmodule PpClientWeb.EndpointLive.Index do
       |> assign(:editing_port, nil)
       |> assign(:delete_port, nil)
       |> assign(:show_new_form, false)
+      |> assign(:profiles, ProfileManager.all_profiles())
       |> stream_configure(:endpoints, dom_id: fn endpoint -> "endpoint-#{endpoint.port}" end)
       |> load_endpoints()
 
@@ -68,7 +70,8 @@ defmodule PpClientWeb.EndpointLive.Index do
       "port" => params["port"],
       "type" => params["type"],
       "ip" => params["ip"],
-      "enable" => params["enable"] == "true"
+      "enable" => params["enable"] == "true",
+      "profile" => params["profile"]
     }
 
     changeset = EndpointSchema.changeset(%EndpointSchema{}, endpoint_params)
@@ -152,7 +155,8 @@ defmodule PpClientWeb.EndpointLive.Index do
       "port" => params["new_port"],
       "type" => params["type"],
       "ip" => params["ip"],
-      "enable" => params["enable"] == "true"
+      "enable" => params["enable"] == "true",
+      "profile" => params["profile"]
     }
 
     changeset = EndpointSchema.changeset(%EndpointSchema{}, endpoint_params)

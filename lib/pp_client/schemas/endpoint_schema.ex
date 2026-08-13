@@ -15,6 +15,7 @@ defmodule PpClient.Schemas.EndpointSchema do
     field :type, Ecto.Enum, values: @type_options
     field :ip, :string
     field :enable, :boolean, default: true
+    field :profile, :string
   end
 
   @doc """
@@ -22,7 +23,7 @@ defmodule PpClient.Schemas.EndpointSchema do
   """
   def changeset(endpoint, attrs \\ %{}) do
     endpoint
-    |> cast(attrs, [:port, :type, :ip, :enable])
+    |> cast(attrs, [:port, :type, :ip, :enable, :profile])
     |> validate_required([:port, :type, :ip])
     |> validate_number(:port, greater_than: 0, less_than_or_equal_to: 65535)
     |> validate_ip_format()
@@ -33,12 +34,19 @@ defmodule PpClient.Schemas.EndpointSchema do
   Converts the schema to a PpClient.Endpoint struct.
   """
   def to_endpoint(%__MODULE__{} = schema) do
+    options =
+      if schema.profile && schema.profile != "" do
+        [profile: schema.profile]
+      else
+        []
+      end
+
     %PpClient.Endpoint{
       port: schema.port,
       type: schema.type,
       ip: parse_ip(schema.ip),
       enable: schema.enable,
-      options: []
+      options: options
     }
   end
 
@@ -46,11 +54,14 @@ defmodule PpClient.Schemas.EndpointSchema do
   Creates a schema from a PpClient.Endpoint struct.
   """
   def from_endpoint(%PpClient.Endpoint{} = endpoint) do
+    profile = Keyword.get(endpoint.options, :profile)
+
     %__MODULE__{
       port: endpoint.port,
       type: endpoint.type,
       ip: format_ip(endpoint.ip),
-      enable: endpoint.enable
+      enable: endpoint.enable,
+      profile: profile
     }
   end
 

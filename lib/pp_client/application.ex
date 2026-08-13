@@ -56,7 +56,9 @@ defmodule PpClient.Application do
     :ets.new(:connect_failed, [:set, :public, :named_table, {:read_concurrency, true}])
   end
 
-  defp load_config(filename) do
+  def load_config, do: load_config(@config_filename)
+
+  def load_config(filename) do
     if File.exists?(filename) do
       {config, _} = Code.eval_file(filename)
       load_endpoints(config)

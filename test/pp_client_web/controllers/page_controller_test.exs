@@ -1,8 +1,8 @@
 defmodule PpClientWeb.PageControllerTest do
   use PpClientWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
+  test "GET / redirects to the admin conditions page", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+    assert redirected_to(conn) == ~p"/admin/conditions"
   end
 end
