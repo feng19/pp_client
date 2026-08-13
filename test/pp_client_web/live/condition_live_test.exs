@@ -10,13 +10,13 @@ defmodule PpClientWeb.ConditionLiveTest do
   alias PpClient.ProxyServer
 
   setup do
-    # 清理测试数据
+    # Clean out the test data
     ConditionManager.all_conditions()
     |> Enum.each(fn condition ->
       ConditionManager.delete_condition(condition.id)
     end)
 
-    # 确保有测试用的 profile（使用有效的 servers）
+    # Make sure a test profile with valid servers exists
     unless ProfileManager.exists?("test-profile") do
       profile = %ProxyProfile{
         name: "test-profile",
@@ -35,17 +35,17 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "lists all conditions", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/conditions")
 
-      assert html =~ "Condition 管理"
+      assert html =~ "Conditions"
     end
 
     test "displays empty state when no conditions exist", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/conditions")
 
-      assert html =~ "暂无 Condition"
+      assert html =~ "No conditions yet"
     end
 
     test "searches conditions", %{conn: conn} do
-      # 创建测试 condition
+      # Create a test condition
       {:ok, regex} = Condition.pattern_to_regex("*.example.com")
 
       condition = %Condition{
@@ -58,7 +58,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 搜索存在的 condition
+      # Search for a condition that exists
       html =
         view
         |> element("form[phx-change='search']")
@@ -66,7 +66,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       assert html =~ "example"
 
-      # 搜索不存在的 condition
+      # Search for a condition that does not exist
       html =
         view
         |> element("form[phx-change='search']")
@@ -76,7 +76,7 @@ defmodule PpClientWeb.ConditionLiveTest do
     end
 
     test "filters by status", %{conn: conn} do
-      # 创建启用的 condition
+      # Create an enabled condition
       {:ok, regex1} = Condition.pattern_to_regex("*.enabled.com")
 
       condition1 = %Condition{
@@ -87,7 +87,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, _} = ConditionManager.add_condition(condition1)
 
-      # 创建禁用的 condition
+      # Create a disabled condition
       {:ok, regex2} = Condition.pattern_to_regex("*.disabled.com")
 
       condition2 = %Condition{
@@ -100,7 +100,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 筛选已启用
+      # Filter by enabled
       html =
         view
         |> element("form[phx-change='filter_status']")
@@ -109,7 +109,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       assert html =~ "enabled"
       refute html =~ "disabled.com"
 
-      # 筛选已禁用
+      # Filter by disabled
       html =
         view
         |> element("form[phx-change='filter_status']")
@@ -120,7 +120,7 @@ defmodule PpClientWeb.ConditionLiveTest do
     end
 
     test "filters by profile", %{conn: conn} do
-      # 创建另一个 profile
+      # Create another profile
       profile2 = %ProxyProfile{
         name: "profile2",
         type: :direct,
@@ -130,7 +130,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       ProfileManager.add_profile(profile2)
 
-      # 创建不同 profile 的 conditions
+      # Create conditions pointing at different profiles
       {:ok, regex1} = Condition.pattern_to_regex("*.test1.com")
 
       condition1 = %Condition{
@@ -153,7 +153,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 筛选 test-profile
+      # Filter by test-profile
       html =
         view
         |> element("form[phx-change='filter_profile']")
@@ -162,7 +162,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       assert html =~ "test1"
       refute html =~ "test2"
 
-      # 筛选 profile2
+      # Filter by profile2
       html =
         view
         |> element("form[phx-change='filter_profile']")
@@ -177,7 +177,7 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "displays new condition form", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 点击新建按钮显示表单
+      # Click the new button to reveal the form
       html = view |> element("button[phx-click='show_new_form']") |> render_click()
 
       assert html =~ "new-condition-form"
@@ -187,10 +187,10 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "creates condition", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 显示新建表单
+      # Reveal the new condition form
       view |> element("button[phx-click='show_new_form']") |> render_click()
 
-      # 提交表单
+      # Submit the form
       view
       |> form("#new-condition-form", %{
         pattern: "*.example.com",
@@ -207,10 +207,10 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "validates required fields", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 显示新建表单
+      # Reveal the new condition form
       view |> element("button[phx-click='show_new_form']") |> render_click()
 
-      # 提交空表单应该失败
+      # Submitting an empty form should fail
       view
       |> form("#new-condition-form", %{
         pattern: "",
@@ -218,7 +218,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       })
       |> render_submit()
 
-      # 验证条件没有被创建
+      # No condition was created
       conditions = ConditionManager.all_conditions()
       assert length(conditions) == 0
     end
@@ -226,10 +226,10 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "validates pattern format", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 显示新建表单
+      # Reveal the new condition form
       view |> element("button[phx-click='show_new_form']") |> render_click()
 
-      # 提交无效的 pattern
+      # Submit an invalid pattern
       view
       |> form("#new-condition-form", %{
         pattern: "[invalid regex",
@@ -237,7 +237,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       })
       |> render_submit()
 
-      # 验证条件没有被创建
+      # No condition was created
       conditions = ConditionManager.all_conditions()
       assert length(conditions) == 0
     end
@@ -245,10 +245,10 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "creates condition with wildcard pattern", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 显示新建表单
+      # Reveal the new condition form
       view |> element("button[phx-click='show_new_form']") |> render_click()
 
-      # 提交通配符 pattern
+      # Submit a wildcard pattern
       view
       |> form("#new-condition-form", %{
         pattern: "*",
@@ -277,7 +277,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 点击编辑按钮
+      # Click the edit button
       html =
         view
         |> element("button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
@@ -300,12 +300,12 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 点击编辑按钮
+      # Click the edit button
       view
       |> element("button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
       |> render_click()
 
-      # 提交编辑表单
+      # Submit the edit form
       view
       |> form("#edit-form-#{saved.id}", %{
         condition_id: saved.id,
@@ -322,11 +322,11 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "redirects when condition not found", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 尝试通过事件编辑不存在的 condition（模拟直接调用 handle_event）
-      # 由于按钮不存在，我们直接发送事件
+      # Edit a condition that does not exist by sending the event directly:
+      # there is no button to click for it
       html = render_click(view, "start_edit", %{"id" => "999"})
 
-      assert html =~ "Condition 不存在"
+      assert html =~ "No such condition"
     end
   end
 
@@ -393,7 +393,7 @@ defmodule PpClientWeb.ConditionLiveTest do
         |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
         |> render_click()
 
-      assert html =~ "确认删除"
+      assert html =~ "Confirm deletion"
       assert html =~ "#{saved.id}"
     end
 
@@ -410,12 +410,12 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 打开确认对话框
+      # Open the confirmation dialog
       view
       |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
       |> render_click()
 
-      # 确认删除
+      # Confirm the deletion
       view
       |> element("button[phx-click='delete'][phx-value-id='#{saved.id}']")
       |> render_click()
@@ -436,12 +436,12 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 打开确认对话框
+      # Open the confirmation dialog
       view
       |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
       |> render_click()
 
-      # 取消删除
+      # Cancel the deletion
       view
       |> element("button[phx-click='delete_cancel']")
       |> render_click()
@@ -456,20 +456,20 @@ defmodule PpClientWeb.ConditionLiveTest do
         {"*.example.com", "*.example.com"},
         {"api.*.com", "api.*.com"},
         {"?.example.com", "?.example.com"},
-        # 通配符 * 会被显示为 "* (匹配所有)"
-        {"*", "* (匹配所有)"},
+        # The * wildcard renders as "* (matches everything)"
+        {"*", "* (matches everything)"},
         {"example.com", "example.com"},
         {"*.*.example.com", "*.*.example.com"}
       ]
 
       for {pattern, expected_display} <- test_patterns do
-        # 创建 condition
+        # Create the condition
         {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-        # 显示新建表单
+        # Reveal the new condition form
         view |> element("button[phx-click='show_new_form']") |> render_click()
 
-        # 提交表单
+        # Submit the form
         view
         |> form("#new-condition-form", %{
           pattern: pattern,
@@ -478,12 +478,12 @@ defmodule PpClientWeb.ConditionLiveTest do
         })
         |> render_submit()
 
-        # 获取刚创建的 condition
+        # Fetch the condition that was just created
         conditions = ConditionManager.all_conditions()
         created = Enum.find(conditions, fn c -> c.profile_name == "test-profile" end)
         assert created != nil
 
-        # 编辑并验证 pattern 显示正确
+        # Edit it and check the pattern is rendered correctly
         {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
         html =
@@ -491,10 +491,10 @@ defmodule PpClientWeb.ConditionLiveTest do
           |> element("button[phx-click='start_edit'][phx-value-id='#{created.id}']")
           |> render_click()
 
-        # 验证表单中显示的 pattern（使用期望的显示格式）
+        # The form shows the pattern in the expected display format
         assert html =~ "value=\"#{expected_display}\""
 
-        # 清理
+        # Clean up
         ConditionManager.delete_condition(created.id)
       end
     end
@@ -504,7 +504,7 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "receives condition updates via PubSub", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 在另一个进程中创建 condition
+      # Create the condition from another process
       {:ok, regex} = Condition.pattern_to_regex("*.pubsub.com")
 
       condition = %Condition{
@@ -515,10 +515,10 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       ConditionManager.add_condition(condition)
 
-      # 广播更新
+      # Broadcast the update
       Phoenix.PubSub.broadcast(PpClient.PubSub, "conditions", {:condition_updated, nil})
 
-      # 等待 LiveView 处理消息
+      # Give the LiveView time to handle the message
       :timer.sleep(100)
 
       html = render(view)
@@ -528,7 +528,7 @@ defmodule PpClientWeb.ConditionLiveTest do
     test "receives profile updates via PubSub", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
-      # 在另一个进程中创建 profile
+      # Create the profile from another process
       profile = %ProxyProfile{
         name: "new-profile",
         type: :direct,
@@ -538,13 +538,13 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       ProfileManager.add_profile(profile)
 
-      # 广播更新
+      # Broadcast the update
       Phoenix.PubSub.broadcast(PpClient.PubSub, "profiles", {:profile_updated, nil})
 
-      # 等待 LiveView 处理消息
+      # Give the LiveView time to handle the message
       :timer.sleep(100)
 
-      # 打开新建表单，应该能看到新的 profile
+      # Open the new form: the new profile should be listed
       html = view |> element("button[phx-click='show_new_form']") |> render_click()
       assert html =~ "new-profile"
     end

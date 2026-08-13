@@ -1,6 +1,6 @@
 defmodule PpClient.ProxyProfile do
   @moduledoc """
-  代理配置文件结构
+  Proxy profile struct
   """
   alias PpClient.ProxyServer
 

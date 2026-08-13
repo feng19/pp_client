@@ -36,7 +36,7 @@ defmodule PpClient.Schemas.ConditionSchema do
           changeset
 
         {:error, _reason} ->
-          add_error(changeset, :pattern, "无效的匹配模式")
+          add_error(changeset, :pattern, "invalid match pattern")
       end
     else
       changeset
@@ -84,7 +84,7 @@ defmodule PpClient.Schemas.ConditionSchema do
   end
 
   defp regex_to_pattern(%Regex{source: source}) do
-    # 使用临时占位符来正确处理转义的点和通配符
+    # Use temporary placeholders so escaped dots and wildcards are handled correctly
     source
     |> String.trim_leading("^")
     |> String.trim_trailing("$")

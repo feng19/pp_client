@@ -39,7 +39,7 @@ defmodule PpClient.Schemas.ProfileSchema do
   end
 
   defp validate_remote_servers(changeset) do
-    # 只在 :insert 或 :update action 时验证（即提交时），不在 :validate 时验证
+    # Only validated on the :insert or :update action (i.e. on submit), not on :validate
     action = changeset.action
 
     if action in [:insert, :update] do

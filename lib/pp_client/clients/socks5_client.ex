@@ -1,10 +1,11 @@
 defmodule PpClient.Socks5Client do
   @moduledoc """
-  SOCKS5 客户端实现
-  支持无认证
+  SOCKS5 client implementation.
+  Supports the no-auth method only.
 
-  `connect/3` 在调用方进程内完成握手，返回一个已经归调用方所有的 socket，
-  之后上下行数据都直接在该 socket 上收发，不再经过中间进程（见 `PpClient.Relay`）。
+  `connect/3` performs the handshake inside the calling process and returns a socket
+  already owned by that caller. Traffic then flows directly over that socket in both
+  directions, with no relay process in between (see `PpClient.Relay`).
   """
   require Logger
   alias PpClient.Relay
@@ -52,7 +53,7 @@ defmodule PpClient.Socks5Client do
     end
   end
 
-  # 建立与代理服务器的连接
+  # Open the connection to the proxy server
   defp establish_proxy_connection(%{host: host, port: port}) do
     case :gen_tcp.connect(String.to_charlist(host), port, @connect_opts, @connect_timeout) do
       {:ok, socket} ->
@@ -64,7 +65,7 @@ defmodule PpClient.Socks5Client do
     end
   end
 
-  # 执行 SOCKS5 握手
+  # Perform the SOCKS5 handshake
   defp perform_handshake(socket) do
     with :ok <- :gen_tcp.send(socket, <<5, 1, 0>>),
          {:ok, <<5, 0>>} <- :gen_tcp.recv(socket, 2, @recv_timeout) do
@@ -76,7 +77,7 @@ defmodule PpClient.Socks5Client do
     end
   end
 
-  # 发送连接请求
+  # Send the connect request
   defp send_connect_request(socket, {_atype, address, port})
        when is_binary(address) and is_integer(port) do
     case encode_address(address) do
@@ -89,8 +90,9 @@ defmodule PpClient.Socks5Client do
     {:error, {:unsupported_target, target}}
   end
 
-  # 目标里的 atype 由入口协议决定，HTTP 入口一律标成 domain，所以这里按地址本身的
-  # 形态重新判断：能解析成 IP 的就按 IP 发，其余按域名发。
+  # The atype on the target comes from the inbound protocol, and the HTTP entry point
+  # always labels it a domain. So decide again from the address itself: send it as an IP
+  # when it parses as one, otherwise as a domain name.
   defp encode_address(address) do
     case :inet.parse_address(to_charlist(address)) do
       {:ok, {a, b, c, d}} ->
@@ -110,7 +112,7 @@ defmodule PpClient.Socks5Client do
 
   defp encode_domain(domain), do: {:error, {:invalid_domain, domain}}
 
-  # 接收连接响应
+  # Receive the connect reply
   defp receive_connect_response(socket) do
     case :gen_tcp.recv(socket, 4, @recv_timeout) do
       {:ok, <<5, 0, 0, address_type>>} ->
@@ -127,12 +129,13 @@ defmodule PpClient.Socks5Client do
     end
   end
 
-  # 读掉响应里的 BND.ADDR / BND.PORT，之后 socket 上剩下的就是隧道数据。
-  # 少读一个字节就会把回复的残留当成隧道数据，所以这里必须按 atype 精确读完。
+  # Consume BND.ADDR / BND.PORT from the reply so that whatever is left on the socket is
+  # tunnel data. Reading one byte too few would feed leftovers of the reply into the
+  # tunnel, so this has to consume exactly what the atype implies.
   defp discard_bound_address(socket, @atype_ipv4), do: discard(socket, 4 + 2)
   defp discard_bound_address(socket, @atype_ipv6), do: discard(socket, 16 + 2)
 
-  # DOMAINNAME 是变长的，先读掉长度前缀才知道要跳过多少字节
+  # DOMAINNAME is variable length: read the length prefix first to know how much to skip
   defp discard_bound_address(socket, @atype_domain) do
     case :gen_tcp.recv(socket, 1, @recv_timeout) do
       {:ok, <<length>>} -> discard(socket, length + 2)

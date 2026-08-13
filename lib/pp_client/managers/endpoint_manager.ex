@@ -139,7 +139,7 @@ defmodule PpClient.EndpointManager do
         {:ok, pid}
 
       {:error, :already_present} ->
-        # 子进程规范已存在但未运行，先删除再重新启动
+        # The child spec already exists but is not running: delete it, then start again
         Logger.info("Restarting existing endpoint on port #{port}")
         Supervisor.delete_child(@supervisor, child_id)
         do_start(endpoint)
@@ -154,19 +154,19 @@ defmodule PpClient.EndpointManager do
   defp do_stop(%Endpoint{port: port} = endpoint) do
     child_id = Endpoint.child_id(endpoint)
 
-    # 先更新状态为禁用
+    # Mark it disabled first
     update_endpoint(%{endpoint | enable: false})
 
     case Supervisor.terminate_child(@supervisor, child_id) do
       :ok ->
         Logger.info("Stopped endpoint on port #{port}")
-        # 删除子进程规范以释放资源
+        # Delete the child spec to free the resources
         case Supervisor.delete_child(@supervisor, child_id) do
           :ok ->
             :ok
 
           {:error, :not_found} ->
-            # 子进程已被删除，这是正常情况
+            # The child was already deleted, which is expected
             :ok
 
           {:error, reason} ->
@@ -203,7 +203,7 @@ defmodule PpClient.EndpointManager do
           {:ok, child}
 
         {:error, :not_found} ->
-          # 子进程不存在，尝试启动
+          # No such child, try to start it
           Logger.info("Endpoint on port #{port} not found, starting instead")
           do_start(endpoint)
 

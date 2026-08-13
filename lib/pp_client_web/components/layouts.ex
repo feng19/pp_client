@@ -43,7 +43,7 @@ defmodule PpClientWeb.Layouts do
         </.link>
       </div>
 
-      <%!-- 桌面端导航 --%>
+      <%!-- Desktop nav --%>
       <div class="flex-none hidden lg:flex">
         <ul class="menu menu-horizontal px-1 gap-2">
           <li>
@@ -67,7 +67,7 @@ defmodule PpClientWeb.Layouts do
         </ul>
       </div>
 
-      <%!-- 移动端汉堡菜单 --%>
+      <%!-- Mobile hamburger menu --%>
       <div class="flex-none lg:hidden">
         <div class="dropdown dropdown-end">
           <label tabindex="0" class="btn btn-ghost btn-circle">

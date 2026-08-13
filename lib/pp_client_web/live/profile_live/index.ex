@@ -12,7 +12,7 @@ defmodule PpClientWeb.ProfileLive.Index do
 
     socket =
       socket
-      |> assign(:page_title, "Profile 管理")
+      |> assign(:page_title, "Profiles")
       |> assign(:search_query, "")
       |> assign(:profiles_empty?, false)
       |> assign(:form, nil)
@@ -31,7 +31,7 @@ defmodule PpClientWeb.ProfileLive.Index do
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Profile 管理")
+    |> assign(:page_title, "Profiles")
     |> assign(:form, nil)
     |> assign(:server_forms, [])
   end
@@ -39,11 +39,11 @@ defmodule PpClientWeb.ProfileLive.Index do
   defp apply_action(socket, :new, _params) do
     changeset = ProfileSchema.changeset(%ProfileSchema{}, %{})
 
-    # 默认添加一个 server 表单
+    # Start with one server form
     default_server = %{"type" => "socks5", "enable" => true}
 
     socket
-    |> assign(:page_title, "新建 Profile")
+    |> assign(:page_title, "New Profile")
     |> assign(:form, to_form(changeset))
     |> assign(:editing_name, nil)
     |> assign(:server_forms, [{0, default_server}])
@@ -58,7 +58,7 @@ defmodule PpClientWeb.ProfileLive.Index do
         server_forms =
           if schema.servers do
             Enum.with_index(schema.servers, fn server, idx ->
-              # 将 server map 转换为字符串键的格式
+              # Convert the server map to string keys
               server_data =
                 if is_struct(server) do
                   server
@@ -66,7 +66,7 @@ defmodule PpClientWeb.ProfileLive.Index do
                   |> Enum.map(fn {k, v} -> {to_string(k), v} end)
                   |> Map.new()
                 else
-                  # 已经是普通 map，只需转换键为字符串
+                  # Already a plain map, only the keys need stringifying
                   server
                   |> Enum.map(fn {k, v} -> {to_string(k), v} end)
                   |> Map.new()
@@ -79,14 +79,14 @@ defmodule PpClientWeb.ProfileLive.Index do
           end
 
         socket
-        |> assign(:page_title, "编辑 Profile")
+        |> assign(:page_title, "Edit Profile")
         |> assign(:form, to_form(changeset))
         |> assign(:editing_name, name)
         |> assign(:server_forms, server_forms)
 
       {:error, :not_found} ->
         socket
-        |> put_flash(:error, "Profile 不存在")
+        |> put_flash(:error, "No such profile")
         |> push_navigate(to: ~p"/admin/profiles")
     end
   end
@@ -107,7 +107,7 @@ defmodule PpClientWeb.ProfileLive.Index do
       |> ProfileSchema.changeset(params)
       |> Map.put(:action, :validate)
 
-    # 更新 server_forms 以反映服务器类型的变化
+    # Refresh server_forms so the server type change is reflected
     server_forms =
       case params["servers"] do
         nil ->
@@ -140,18 +140,18 @@ defmodule PpClientWeb.ProfileLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Profile 保存成功")
+              |> put_flash(:info, "Profile saved")
               |> push_navigate(to: ~p"/admin/profiles")
               |> load_profiles()
 
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "保存失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Save failed: #{inspect(reason)}")}
         end
 
       {:error, changeset} ->
-        # 更新 server_forms 以保持表单状态
+        # Refresh server_forms to keep the form state
         server_forms =
           case params["servers"] do
             nil ->
@@ -188,18 +188,18 @@ defmodule PpClientWeb.ProfileLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "状态已更新")
+              |> put_flash(:info, "Status updated")
               |> load_profiles()
 
             broadcast_change()
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "操作失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Action failed: #{inspect(reason)}")}
         end
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Profile 不存在")}
+        {:noreply, put_flash(socket, :error, "No such profile")}
     end
   end
 
@@ -216,7 +216,7 @@ defmodule PpClientWeb.ProfileLive.Index do
       :ok ->
         socket =
           socket
-          |> put_flash(:info, "Profile 已删除")
+          |> put_flash(:info, "Profile deleted")
           |> assign(:delete_name, nil)
           |> load_profiles()
 
@@ -224,7 +224,7 @@ defmodule PpClientWeb.ProfileLive.Index do
         {:noreply, socket}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "删除失败: #{inspect(reason)}")}
+        {:noreply, put_flash(socket, :error, "Delete failed: #{inspect(reason)}")}
     end
   end
 
@@ -257,11 +257,11 @@ defmodule PpClientWeb.ProfileLive.Index do
     editing_name = Map.get(socket.assigns, :editing_name)
 
     if editing_name do
-      # 编辑现有 profile
+      # Edit an existing profile
       if editing_name != profile.name && ProfileManager.exists?(profile.name) do
         {:error, :name_already_exists}
       else
-        # 如果名称改变了，需要先删除旧的
+        # A changed name means the old profile has to be deleted first
         if editing_name != profile.name do
           ProfileManager.delete_profile(editing_name)
         end
@@ -271,7 +271,7 @@ defmodule PpClientWeb.ProfileLive.Index do
         result
       end
     else
-      # 创建新 profile
+      # Create a new profile
       if ProfileManager.exists?(profile.name) do
         {:error, :name_already_exists}
       else
@@ -312,7 +312,7 @@ defmodule PpClientWeb.ProfileLive.Index do
     Phoenix.PubSub.broadcast(PpClient.PubSub, "profiles", {:profile_updated, nil})
   end
 
-  defp type_label(:direct), do: "直连"
-  defp type_label(:remote), do: "远程代理"
+  defp type_label(:direct), do: "Direct"
+  defp type_label(:remote), do: "Remote proxy"
   defp type_label(type), do: to_string(type)
 end

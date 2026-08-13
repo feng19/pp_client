@@ -10,7 +10,7 @@ defmodule PpClientWeb.ProfileLiveTest do
   @moduletag capture_log: true
 
   setup do
-    # 清理测试数据
+    # Clean out the test data
     ProfileManager.all_profiles()
     |> Enum.each(fn profile ->
       unless profile.name == "direct" do
@@ -25,12 +25,12 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "lists all profiles", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/profiles")
 
-      assert html =~ "Profile 管理"
+      assert html =~ "Profiles"
       assert html =~ "direct"
     end
 
     test "searches profiles", %{conn: conn} do
-      # 创建测试 profile（使用有效的 servers）
+      # Create a test profile with valid servers
       profile = %ProxyProfile{
         name: "test-profile",
         type: :remote,
@@ -42,7 +42,7 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 搜索存在的 profile
+      # Search for a profile that exists
       html =
         view
         |> element("form")
@@ -50,13 +50,13 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       assert html =~ "test-profile"
 
-      # 搜索不存在的 profile
+      # Search for a profile that does not exist
       html =
         view
         |> element("form")
         |> render_change(%{search: "nonexistent"})
 
-      # 检查桌面端表格中不包含 test-profile
+      # The desktop table must not contain test-profile
       refute html =~ ~r/<tbody id="profiles"[^>]*>.*test-profile.*<\/tbody>/s
     end
 
@@ -68,7 +68,7 @@ defmodule PpClientWeb.ProfileLiveTest do
         |> element("form")
         |> render_change(%{search: "nonexistent-profile"})
 
-      assert html =~ "没有找到匹配的 Profile"
+      assert html =~ "No matching profile"
     end
   end
 
@@ -76,15 +76,15 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "displays new profile form", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/profiles/new")
 
-      assert html =~ "新建 Profile"
-      assert html =~ "名称"
-      assert html =~ "类型"
+      assert html =~ "New Profile"
+      assert html =~ "Name"
+      assert html =~ "Type"
     end
 
     test "creates direct profile", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 先删除默认的服务器（direct profile 不需要服务器）
+      # Remove the default server first: a direct profile needs none
       view
       |> element("button[phx-click='remove_server'][phx-value-index='0']")
       |> render_click()
@@ -110,12 +110,12 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "creates remote profile with servers", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 先选择类型为 remote（已经有默认服务器）
+      # Switch the type to remote, which already has a default server
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "new-remote"})
       |> render_change()
 
-      # 提交表单（使用默认服务器）
+      # Submit the form with the default server
       assert view
              |> form("#profile-form",
                profile_schema: %{
@@ -159,7 +159,7 @@ defmodule PpClientWeb.ProfileLiveTest do
     end
 
     test "prevents duplicate profile names", %{conn: conn} do
-      # 创建已存在的 profile
+      # Create a profile that already exists
       profile = %ProxyProfile{
         name: "existing",
         type: :direct,
@@ -187,12 +187,12 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "validates remote profile must have at least one server", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 先删除默认的服务器
+      # Remove the default server first
       view
       |> element("button[phx-click='remove_server'][phx-value-index='0']")
       |> render_click()
 
-      # 尝试提交没有服务器的远程代理 profile
+      # Try to submit a remote profile with no server
       html =
         view
         |> form("#profile-form",
@@ -204,22 +204,22 @@ defmodule PpClientWeb.ProfileLiveTest do
         )
         |> render_submit()
 
-      # 提交后应该显示验证错误在 flash 消息中
-      assert html =~ "保存失败"
+      # The validation error shows up in the flash message
+      assert html =~ "Save failed"
       assert html =~ "Remote profile must have at least one server"
-      # 表单应该仍然存在（没有跳转）
+      # The form is still there, no redirect happened
       assert has_element?(view, "#profile-form")
     end
 
     test "allows creating remote profile with servers", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 选择远程代理类型（已经有默认服务器）
+      # Pick the remote type, which already has a default server
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "remote-with-server"})
       |> render_change()
 
-      # 提交表单应该成功（使用默认服务器）
+      # Submitting with the default server should succeed
       assert view
              |> form("#profile-form",
                profile_schema: %{
@@ -259,7 +259,7 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/profiles/edit-test/edit")
 
-      assert html =~ "编辑 Profile"
+      assert html =~ "Edit Profile"
       assert html =~ "edit-test"
     end
 
@@ -357,7 +357,7 @@ defmodule PpClientWeb.ProfileLiveTest do
         |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test']")
         |> render_click()
 
-      assert html =~ "确认删除"
+      assert html =~ "Confirm deletion"
       assert html =~ "delete-test"
     end
 
@@ -373,12 +373,12 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 打开确认对话框 - 使用桌面端按钮
+      # Open the confirmation dialog with the desktop button
       view
       |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test-2']")
       |> render_click()
 
-      # 确认删除
+      # Confirm the deletion
       view
       |> element("button[phx-click='delete'][phx-value-name='delete-test-2']")
       |> render_click()
@@ -398,12 +398,12 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 打开确认对话框 - 使用桌面端按钮
+      # Open the confirmation dialog with the desktop button
       view
       |> element("#profiles button[phx-click='delete_confirm'][phx-value-name='delete-test-3']")
       |> render_click()
 
-      # 取消删除
+      # Cancel the deletion
       view
       |> element("button[phx-click='delete_cancel']")
       |> render_click()
@@ -416,19 +416,19 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "adds server to profile form", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 选择远程代理类型
+      # Pick the remote type
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
       |> render_change()
 
-      # 添加服务器
+      # Add a server
       html =
         view
         |> element("button[phx-click='add_server']")
         |> render_click()
 
-      assert html =~ "服务器 #1"
-      assert html =~ "服务器类型"
+      assert html =~ "Server #1"
+      assert html =~ "Server type"
     end
 
     test "removes server from profile form", %{conn: conn} do
@@ -445,19 +445,19 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/server-test/edit")
 
-      # 移除服务器
+      # Remove the server
       html =
         view
         |> element("button[phx-click='remove_server'][phx-value-index='0']")
         |> render_click()
 
-      refute html =~ "服务器 1"
+      refute html =~ "Server 1"
     end
 
     test "displays SOCKS5 specific fields", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 选择远程代理类型并添加服务器
+      # Pick the remote type and add a server
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
       |> render_change()
@@ -466,24 +466,24 @@ defmodule PpClientWeb.ProfileLiveTest do
       |> element("button[phx-click='add_server']")
       |> render_click()
 
-      # 默认是 SOCKS5 类型，应该显示主机和端口字段
+      # SOCKS5 is the default type, so the host and port fields show up
       html = render(view)
-      assert html =~ "主机地址"
-      assert html =~ "端口"
+      assert html =~ "Host"
+      assert html =~ "Port"
       refute html =~ "WebSocket URI"
-      refute html =~ "密码"
-      refute html =~ "加密类型"
+      refute html =~ "Password"
+      refute html =~ "Encryption"
     end
 
     test "displays EXPS specific fields when server type changes", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 选择远程代理类型
+      # Pick the remote type
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
       |> render_change()
 
-      # 更改默认服务器类型为 EXPS
+      # Change the default server type to EXPS
       html =
         view
         |> form("#profile-form",
@@ -497,22 +497,22 @@ defmodule PpClientWeb.ProfileLiveTest do
         )
         |> render_change()
 
-      # 应该显示 EXPS 特定字段
+      # The EXPS specific fields show up
       assert html =~ "WebSocket URI"
-      assert html =~ "加密类型"
-      assert html =~ "加密密钥"
-      # 注意：由于可能有多个服务器，我们只检查 EXPS 字段存在
+      assert html =~ "Encryption"
+      assert html =~ "Encryption key"
+      # Note: with several servers possible, only check that the EXPS fields exist
     end
 
     test "displays CF Workers specific fields when server type changes", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # 选择远程代理类型
+      # Pick the remote type
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
       |> render_change()
 
-      # 更改默认服务器类型为 CF Workers
+      # Change the default server type to CF Workers
       html =
         view
         |> form("#profile-form",
@@ -526,10 +526,10 @@ defmodule PpClientWeb.ProfileLiveTest do
         )
         |> render_change()
 
-      # 应该显示 CF Workers 特定字段
+      # The CF Workers specific fields show up
       assert html =~ "WebSocket URI"
-      assert html =~ "密码"
-      # 注意：由于可能有多个服务器，我们只检查 CF Workers 字段存在
+      assert html =~ "Password"
+      # Note: with several servers possible, only check that the CF Workers fields exist
     end
 
     test "edits profile with EXPS server shows correct fields", %{conn: conn} do
@@ -546,9 +546,9 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/profiles/exps-test/edit")
 
-      # 应该显示 EXPS 特定字段
+      # The EXPS specific fields show up
       assert html =~ "WebSocket URI"
-      assert html =~ "加密类型"
+      assert html =~ "Encryption"
       assert html =~ "wss://example.com/ws"
     end
 
@@ -566,9 +566,9 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/profiles/cf-test/edit")
 
-      # 应该显示 CF Workers 特定字段
+      # The CF Workers specific fields show up
       assert html =~ "WebSocket URI"
-      assert html =~ "密码"
+      assert html =~ "Password"
       assert html =~ "wss://worker.example.com"
     end
 
@@ -586,9 +586,9 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/profiles/socks5-test/edit")
 
-      # 应该显示 SOCKS5 特定字段
-      assert html =~ "主机地址"
-      assert html =~ "端口"
+      # The SOCKS5 specific fields show up
+      assert html =~ "Host"
+      assert html =~ "Port"
       assert html =~ "192.168.1.100"
       assert html =~ "1088"
     end
@@ -598,7 +598,7 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "receives profile updates via PubSub", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles")
 
-      # 在另一个进程中创建 profile
+      # Create the profile from another process
       profile = %ProxyProfile{
         name: "pubsub-test",
         type: :direct,
@@ -608,10 +608,10 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       ProfileManager.add_profile(profile)
 
-      # 广播更新
+      # Broadcast the update
       Phoenix.PubSub.broadcast(PpClient.PubSub, "profiles", {:profile_updated, nil})
 
-      # 等待 LiveView 处理消息
+      # Give the LiveView time to handle the message
       :timer.sleep(100)
 
       html = render(view)

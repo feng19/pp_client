@@ -14,7 +14,7 @@ defmodule PpClientWeb.ConditionLive.Index do
 
     socket =
       socket
-      |> assign(:page_title, "Condition 管理")
+      |> assign(:page_title, "Conditions")
       |> assign(:search_query, "")
       |> assign(:filter_status, "all")
       |> assign(:filter_profile, "all")
@@ -94,12 +94,12 @@ defmodule PpClientWeb.ConditionLive.Index do
 
         case ConditionManager.add_condition(condition) do
           {:ok, _} ->
-            # 创建成功后，检查并清除匹配的失败记录
+            # Once created, clear any failure record the new condition covers
             clear_matching_failed_hosts(condition)
 
             socket =
               socket
-              |> put_flash(:info, "Condition 创建成功")
+              |> put_flash(:info, "Condition created")
               |> assign(:show_new_form, false)
               |> load_conditions()
 
@@ -107,11 +107,11 @@ defmodule PpClientWeb.ConditionLive.Index do
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Create failed: #{inspect(reason)}")}
         end
 
       {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "输入数据无效")}
+        {:noreply, put_flash(socket, :error, "Invalid input")}
     end
   end
 
@@ -128,7 +128,7 @@ defmodule PpClientWeb.ConditionLive.Index do
         {:noreply, socket}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Condition 不存在")}
+        {:noreply, put_flash(socket, :error, "No such condition")}
     end
   end
 
@@ -173,7 +173,7 @@ defmodule PpClientWeb.ConditionLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Condition 更新成功")
+              |> put_flash(:info, "Condition updated")
               |> assign(:editing_id, nil)
               |> load_conditions()
 
@@ -181,11 +181,11 @@ defmodule PpClientWeb.ConditionLive.Index do
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "保存失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Save failed: #{inspect(reason)}")}
         end
 
       {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "输入数据无效")}
+        {:noreply, put_flash(socket, :error, "Invalid input")}
     end
   end
 
@@ -205,18 +205,18 @@ defmodule PpClientWeb.ConditionLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "状态已更新")
+              |> put_flash(:info, "Status updated")
               |> load_conditions()
 
             broadcast_change()
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "操作失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Action failed: #{inspect(reason)}")}
         end
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Condition 不存在")}
+        {:noreply, put_flash(socket, :error, "No such condition")}
     end
   end
 
@@ -235,7 +235,7 @@ defmodule PpClientWeb.ConditionLive.Index do
       :ok ->
         socket =
           socket
-          |> put_flash(:info, "Condition 已删除")
+          |> put_flash(:info, "Condition deleted")
           |> assign(:delete_id, nil)
           |> load_conditions()
 
@@ -243,7 +243,7 @@ defmodule PpClientWeb.ConditionLive.Index do
         {:noreply, socket}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "删除失败: #{inspect(reason)}")}
+        {:noreply, put_flash(socket, :error, "Delete failed: #{inspect(reason)}")}
     end
   end
 
@@ -268,18 +268,18 @@ defmodule PpClientWeb.ConditionLive.Index do
       ) do
     original_port = String.to_integer(original_port_str)
 
-    # 验证 profile 是否选择
+    # A profile has to be picked
     if profile_name == "" do
-      {:noreply, put_flash(socket, :error, "请选择一个 Profile")}
+      {:noreply, put_flash(socket, :error, "Pick a profile")}
     else
-      # 创建 condition
+      # Create the condition
       condition = %PpClient.Condition{
         condition: :all,
         profile_name: profile_name,
         enabled: true
       }
 
-      # 尝试将 pattern 转换为 regex
+      # Try to compile the pattern into a regex
       condition =
         case PpClient.Condition.pattern_to_regex(pattern) do
           {:ok, regex} -> %{condition | condition: regex}
@@ -288,12 +288,12 @@ defmodule PpClientWeb.ConditionLive.Index do
 
       case ConditionManager.add_condition(condition) do
         {:ok, _} ->
-          # 清除该失败记录
+          # Drop that failure record
           ConditionManager.clear_connect_failed(original_host, original_port)
 
           socket =
             socket
-            |> put_flash(:info, "已创建 Condition: #{pattern} → #{profile_name}")
+            |> put_flash(:info, "Condition created: #{pattern} → #{profile_name}")
             |> load_conditions()
             |> load_connect_failed_hosts()
 
@@ -301,7 +301,7 @@ defmodule PpClientWeb.ConditionLive.Index do
           {:noreply, socket}
 
         {:error, reason} ->
-          {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+          {:noreply, put_flash(socket, :error, "Create failed: #{inspect(reason)}")}
       end
     end
   end
@@ -312,21 +312,21 @@ defmodule PpClientWeb.ConditionLive.Index do
 
     socket =
       socket
-      |> put_flash(:info, "已清除失败记录")
+      |> put_flash(:info, "Failure record cleared")
       |> load_connect_failed_hosts()
 
     {:noreply, socket}
   end
 
   def handle_event("clear_all_failed", _params, socket) do
-    # 清除所有失败记录
+    # Clear every failure record
     Enum.each(socket.assigns.connect_failed_hosts, fn host ->
       ConditionManager.clear_connect_failed(host.host, host.port)
     end)
 
     socket =
       socket
-      |> put_flash(:info, "已清除所有失败记录")
+      |> put_flash(:info, "All failure records cleared")
       |> load_connect_failed_hosts()
 
     {:noreply, socket}
@@ -337,7 +337,7 @@ defmodule PpClientWeb.ConditionLive.Index do
 
     socket =
       socket
-      |> put_flash(:info, "缓存已刷新")
+      |> put_flash(:info, "Cache refreshed")
 
     {:noreply, socket}
   end
@@ -352,10 +352,10 @@ defmodule PpClientWeb.ConditionLive.Index do
   end
 
   defp clear_matching_failed_hosts(condition) do
-    # 获取所有失败的主机
+    # Every host that failed to connect
     failed_hosts = ConditionManager.get_connect_failed_hosts()
 
-    # 检查每个失败主机是否匹配新创建的 condition
+    # Check each failed host against the newly created condition
     Enum.each(failed_hosts, fn host ->
       host_str = to_string(host.host)
 
@@ -437,10 +437,10 @@ defmodule PpClientWeb.ConditionLive.Index do
     Phoenix.PubSub.broadcast(PpClient.PubSub, "conditions", {:condition_updated, nil})
   end
 
-  defp format_condition(:all), do: "* (匹配所有)"
+  defp format_condition(:all), do: "* (matches everything)"
 
   defp format_condition(%Regex{} = regex) do
-    # 使用临时占位符来正确转换 regex 回 pattern
+    # Use temporary placeholders to turn the regex back into a pattern
     regex.source
     |> String.trim_leading("^")
     |> String.trim_trailing("$")
@@ -458,24 +458,24 @@ defmodule PpClientWeb.ConditionLive.Index do
 
     cond do
       diff_seconds < 60 ->
-        "刚刚"
+        "just now"
 
       diff_seconds < 3600 ->
         minutes = div(diff_seconds, 60)
-        "#{minutes} 分钟前"
+        "#{minutes}m ago"
 
       diff_seconds < 86400 ->
         hours = div(diff_seconds, 3600)
-        "#{hours} 小时前"
+        "#{hours}h ago"
 
       diff_seconds < 604_800 ->
         days = div(diff_seconds, 86400)
-        "#{days} 天前"
+        "#{days}d ago"
 
       true ->
         Calendar.strftime(datetime, "%Y-%m-%d %H:%M")
     end
   end
 
-  defp format_timestamp(_), do: "未知"
+  defp format_timestamp(_), do: "unknown"
 end

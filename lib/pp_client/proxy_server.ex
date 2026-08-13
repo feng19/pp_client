@@ -20,14 +20,14 @@ defmodule PpClient.ProxyServer do
         }
 
   @doc """
-  创建 EXPS 类型代理服务器
+  Builds an EXPS proxy server.
 
-  ## 参数
-    - uri: WebSocket 连接地址
-    - encrypt_type: 加密类型 (:none | :once)
-    - encrypt_key: 加密密钥
+  ## Parameters
+    - uri: WebSocket endpoint
+    - encrypt_type: encryption type (:none | :once)
+    - encrypt_key: encryption key
 
-  ## 示例
+  ## Examples
       iex> PpClient.ProxyServer.exps("wss://ws.example.com/ws", :none, nil)
       %PpClient.ProxyServer{
         type: "exps",
@@ -49,13 +49,13 @@ defmodule PpClient.ProxyServer do
   end
 
   @doc """
-  创建 Cloudflare Workers 类型代理服务器
+  Builds a Cloudflare Workers proxy server.
 
-  ## 参数
-    - uri: WebSocket 连接地址
-    - password: 认证密码
+  ## Parameters
+    - uri: WebSocket endpoint
+    - password: authentication password
 
-  ## 示例
+  ## Examples
       iex> PpClient.ProxyServer.cf_workers("wss://ws.example.com", "secret")
       %PpClient.ProxyServer{
         type: "cf-workers",
@@ -76,13 +76,13 @@ defmodule PpClient.ProxyServer do
   end
 
   @doc """
-  创建 SOCKS5 类型代理服务器
+  Builds a SOCKS5 proxy server.
 
-  ## 参数
-    - host: 代理服务器地址
-    - port: 代理服务器端口
+  ## Parameters
+    - host: proxy server address
+    - port: proxy server port
 
-  ## 示例
+  ## Examples
       iex> PpClient.ProxyServer.socks5("127.0.0.1", 1088)
       %PpClient.ProxyServer{
         type: "socks5",

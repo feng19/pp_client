@@ -13,7 +13,7 @@ defmodule PpClientWeb.EndpointLive.Index do
 
     socket =
       socket
-      |> assign(:page_title, "Endpoint 管理")
+      |> assign(:page_title, "Endpoints")
       |> assign(:search_query, "")
       |> assign(:filter_status, "all")
       |> assign(:endpoints_empty?, false)
@@ -65,7 +65,7 @@ defmodule PpClientWeb.EndpointLive.Index do
   end
 
   def handle_event("save_new", params, socket) do
-    # 构建参数
+    # Build the params
     endpoint_params = %{
       "port" => params["port"],
       "type" => params["type"],
@@ -84,7 +84,7 @@ defmodule PpClientWeb.EndpointLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Endpoint 创建成功")
+              |> put_flash(:info, "Endpoint created")
               |> assign(:show_new_form, false)
               |> load_endpoints()
 
@@ -94,23 +94,23 @@ defmodule PpClientWeb.EndpointLive.Index do
           {:error, :port_already_exists} ->
             socket =
               socket
-              |> put_flash(:error, "端口已被占用")
+              |> put_flash(:error, "Port already in use")
 
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "创建失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Create failed: #{inspect(reason)}")}
         end
 
       {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "输入数据无效")}
+        {:noreply, put_flash(socket, :error, "Invalid input")}
     end
   end
 
   def handle_event("start_edit", %{"port" => port}, socket) do
     port = String.to_integer(port)
 
-    # 获取endpoint并重新插入stream以触发重新渲染
+    # Fetch the endpoint and re-insert it into the stream to force a re-render
     case EndpointManager.get_endpoint(port) do
       {:ok, endpoint} ->
         socket =
@@ -121,12 +121,12 @@ defmodule PpClientWeb.EndpointLive.Index do
         {:noreply, socket}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Endpoint 不存在")}
+        {:noreply, put_flash(socket, :error, "No such endpoint")}
     end
   end
 
   def handle_event("cancel_edit", _params, socket) do
-    # 获取正在编辑的endpoint并重新插入stream以触发重新渲染
+    # Fetch the endpoint being edited and re-insert it into the stream to force a re-render
     case socket.assigns.editing_port do
       nil ->
         {:noreply, socket}
@@ -150,7 +150,7 @@ defmodule PpClientWeb.EndpointLive.Index do
   def handle_event("save_edit", %{"port" => port_str} = params, socket) do
     original_port = String.to_integer(port_str)
 
-    # 构建参数
+    # Build the params
     endpoint_params = %{
       "port" => params["new_port"],
       "type" => params["type"],
@@ -169,7 +169,7 @@ defmodule PpClientWeb.EndpointLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Endpoint 更新成功")
+              |> put_flash(:info, "Endpoint updated")
               |> assign(:editing_port, nil)
               |> load_endpoints()
 
@@ -179,16 +179,16 @@ defmodule PpClientWeb.EndpointLive.Index do
           {:error, :port_already_exists} ->
             socket =
               socket
-              |> put_flash(:error, "端口已被占用")
+              |> put_flash(:error, "Port already in use")
 
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "保存失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Save failed: #{inspect(reason)}")}
         end
 
       {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "输入数据无效")}
+        {:noreply, put_flash(socket, :error, "Invalid input")}
     end
   end
 
@@ -208,18 +208,18 @@ defmodule PpClientWeb.EndpointLive.Index do
           :ok ->
             socket =
               socket
-              |> put_flash(:info, "状态已更新")
+              |> put_flash(:info, "Status updated")
               |> load_endpoints()
 
             broadcast_change()
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "操作失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Action failed: #{inspect(reason)}")}
         end
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Endpoint 不存在")}
+        {:noreply, put_flash(socket, :error, "No such endpoint")}
     end
   end
 
@@ -232,18 +232,18 @@ defmodule PpClientWeb.EndpointLive.Index do
           {:ok, _} ->
             socket =
               socket
-              |> put_flash(:info, "Endpoint 已重启")
+              |> put_flash(:info, "Endpoint restarted")
               |> load_endpoints()
 
             broadcast_change()
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "重启失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Restart failed: #{inspect(reason)}")}
         end
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Endpoint 不存在")}
+        {:noreply, put_flash(socket, :error, "No such endpoint")}
     end
   end
 
@@ -266,7 +266,7 @@ defmodule PpClientWeb.EndpointLive.Index do
 
             socket =
               socket
-              |> put_flash(:info, "Endpoint 已删除")
+              |> put_flash(:info, "Endpoint deleted")
               |> assign(:delete_port, nil)
               |> load_endpoints()
 
@@ -274,11 +274,11 @@ defmodule PpClientWeb.EndpointLive.Index do
             {:noreply, socket}
 
           {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "删除失败: #{inspect(reason)}")}
+            {:noreply, put_flash(socket, :error, "Delete failed: #{inspect(reason)}")}
         end
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Endpoint 不存在")}
+        {:noreply, put_flash(socket, :error, "No such endpoint")}
     end
   end
 
@@ -288,7 +288,7 @@ defmodule PpClientWeb.EndpointLive.Index do
   end
 
   defp save_new_endpoint(endpoint) do
-    # 创建新 endpoint
+    # Create a new endpoint
     if EndpointManager.exists?(endpoint.port) do
       {:error, :port_already_exists}
     else
@@ -305,12 +305,12 @@ defmodule PpClientWeb.EndpointLive.Index do
   end
 
   defp save_endpoint_edit(original_port, endpoint) do
-    # 编辑现有 endpoint
+    # Edit an existing endpoint
     case EndpointManager.get_endpoint(original_port) do
       {:ok, old_endpoint} ->
-        # 如果端口改变了，需要先停止旧的
+        # A changed port means the old listener has to be stopped first
         if old_endpoint.port != endpoint.port do
-          # 检查新端口是否已存在
+          # Make sure the new port is free
           if EndpointManager.exists?(endpoint.port) do
             {:error, :port_already_exists}
           else
@@ -391,7 +391,7 @@ defmodule PpClientWeb.EndpointLive.Index do
 
   defp type_label(:socks5), do: "SOCKS5"
   defp type_label(:http), do: "HTTP"
-  defp type_label(:auto), do: "自动检测"
+  defp type_label(:auto), do: "Auto-detect"
   defp type_label(:http_to_socks5), do: "HTTP → SOCKS5"
   defp type_label(type), do: to_string(type)
 

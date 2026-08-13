@@ -1,25 +1,25 @@
 <Layouts.app flash={@flash}>
   <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
     <.header>
-      Condition 管理
-      <:subtitle>管理代理匹配规则</:subtitle>
+      Conditions
+      <:subtitle>Manage the proxy routing rules</:subtitle>
       <:actions>
         <button
           phx-click="refresh_cache"
           class="btn btn-outline btn-xs sm:btn-sm gap-1 sm:gap-2 mr-2"
-          title="刷新缓存"
+          title="Refresh cache"
         >
           <.icon name="hero-arrow-path" class="size-3 sm:size-4" />
-          <span class="hidden sm:inline">刷新缓存</span>
-          <span class="sm:hidden">刷新</span>
+          <span class="hidden sm:inline">Refresh cache</span>
+          <span class="sm:hidden">Refresh</span>
         </button>
         <button
           phx-click="toggle_connect_failed"
           class="btn btn-outline btn-xs sm:btn-sm gap-1 sm:gap-2 mr-2"
         >
           <.icon name="hero-exclamation-triangle" class="size-3 sm:size-4" />
-          <span class="hidden sm:inline">连接失败列表</span>
-          <span class="sm:hidden">失败</span>
+          <span class="hidden sm:inline">Failed connections</span>
+          <span class="sm:hidden">Failed</span>
           <%= if @show_connect_failed do %>
             <.icon name="hero-chevron-up" class="size-3 sm:size-4" />
           <% else %>
@@ -33,22 +33,22 @@
         </button>
         <button phx-click="show_new_form" class="btn btn-primary btn-xs sm:btn-sm gap-1">
           <.icon name="hero-plus" class="size-4 sm:size-5" />
-          <span class="hidden sm:inline">新建 Condition</span>
-          <span class="sm:hidden">新建</span>
+          <span class="hidden sm:inline">New Condition</span>
+          <span class="sm:hidden">New</span>
         </button>
       </:actions>
     </.header>
 
-    <%!-- 搜索和筛选栏 --%>
+    <%!-- Search and filter bar --%>
     <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
-      <%!-- 搜索框 --%>
+      <%!-- Search box --%>
       <div class="flex-1">
         <form phx-change="search" phx-submit="search" class="relative">
           <input
             type="text"
             name="search"
             value={@search_query}
-            placeholder="搜索规则或 Profile..."
+            placeholder="Search by rule or profile..."
             class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
             autocomplete="off"
           />
@@ -59,22 +59,22 @@
         </form>
       </div>
 
-      <%!-- 状态筛选 --%>
+      <%!-- Status filter --%>
       <div class="w-full sm:w-48">
         <form phx-change="filter_status">
           <select name="status" class="select select-bordered select-sm sm:select-md w-full">
-            <option value="all" selected={@filter_status == "all"}>全部状态</option>
-            <option value="enabled" selected={@filter_status == "enabled"}>已启用</option>
-            <option value="disabled" selected={@filter_status == "disabled"}>已禁用</option>
+            <option value="all" selected={@filter_status == "all"}>All statuses</option>
+            <option value="enabled" selected={@filter_status == "enabled"}>Enabled</option>
+            <option value="disabled" selected={@filter_status == "disabled"}>Disabled</option>
           </select>
         </form>
       </div>
 
-      <%!-- Profile 筛选 --%>
+      <%!-- Profile filter --%>
       <div class="w-full sm:w-48">
         <form phx-change="filter_profile">
           <select name="profile" class="select select-bordered select-sm sm:select-md w-full">
-            <option value="all" selected={@filter_profile == "all"}>全部 Profile</option>
+            <option value="all" selected={@filter_profile == "all"}>All profiles</option>
             <%= for profile_name <- @available_profiles do %>
               <option value={profile_name} selected={@filter_profile == profile_name}>
                 {profile_name}
@@ -85,23 +85,24 @@
       </div>
     </div>
 
-    <%!-- Connect Failed 列表 --%>
+    <%!-- Failed connection list --%>
     <%= if @show_connect_failed do %>
       <div class="mb-4 sm:mb-6">
         <div class="card bg-base-100 shadow-xl">
           <div class="card-body p-3 sm:p-6">
             <div class="flex justify-between items-center mb-4">
               <h3 class="card-title text-base sm:text-lg">
-                <.icon name="hero-exclamation-triangle" class="size-5 text-warning" /> 连接失败的主机
+                <.icon name="hero-exclamation-triangle" class="size-5 text-warning" />
+                Hosts that failed to connect
               </h3>
               <%= if length(@connect_failed_hosts) > 0 do %>
                 <button
                   phx-click="clear_all_failed"
                   class="btn btn-xs sm:btn-sm btn-ghost text-error"
-                  data-confirm="确定要清除所有失败记录吗？"
+                  data-confirm="Clear every failure record?"
                 >
                   <.icon name="hero-trash" class="size-3 sm:size-4" />
-                  <span class="hidden sm:inline">清除全部</span>
+                  <span class="hidden sm:inline">Clear all</span>
                 </button>
               <% end %>
             </div>
@@ -112,18 +113,18 @@
                   name="hero-check-circle"
                   class="size-8 sm:size-12 mx-auto mb-2 text-success"
                 />
-                <p class="text-sm sm:text-base">暂无连接失败记录</p>
+                <p class="text-sm sm:text-base">No failed connections recorded</p>
               </div>
             <% else %>
               <div class="overflow-x-auto max-h-96 overflow-y-auto">
                 <table class="table table-sm hidden sm:table">
                   <thead>
                     <tr>
-                      <th class="w-80">匹配模式</th>
-                      <th class="w-48">关联 Profile</th>
-                      <th class="w-24">失败次数</th>
-                      <th class="w-32">最后失败</th>
-                      <th class="text-right">操作</th>
+                      <th class="w-80">Pattern</th>
+                      <th class="w-48">Profile</th>
+                      <th class="w-24">Failures</th>
+                      <th class="w-32">Last failure</th>
+                      <th class="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -151,7 +152,7 @@
                           class="select select-bordered select-sm w-full"
                           required
                         >
-                          <option value="">选择 Profile</option>
+                          <option value="">Pick a profile</option>
                           <%= for profile_name <- @available_profiles do %>
                             <option value={profile_name}>{profile_name}</option>
                           <% end %>
@@ -170,22 +171,22 @@
                       </td>
                       <td>
                         <div class="flex justify-end gap-2">
-                          <%!-- 创建规则按钮 --%>
+                          <%!-- Create rule button --%>
                           <button
                             type="submit"
                             form={"failed-form-#{host.host}-#{host.port}"}
                             class="btn btn-sm btn-primary gap-1"
-                            title="创建 Condition"
+                            title="Create condition"
                           >
-                            <.icon name="hero-plus" class="size-4" /> 创建
+                            <.icon name="hero-plus" class="size-4" /> Create
                           </button>
-                          <%!-- 清除记录 --%>
+                          <%!-- Clear record --%>
                           <button
                             phx-click="clear_failed_host"
                             phx-value-host={host.host}
                             phx-value-port={host.port}
                             class="btn btn-sm btn-ghost text-error"
-                            title="清除此记录"
+                            title="Clear this record"
                           >
                             <.icon name="hero-trash" class="size-4" />
                           </button>
@@ -195,7 +196,7 @@
                   </tbody>
                 </table>
 
-                <%!-- 移动端卡片视图 --%>
+                <%!-- Mobile card view --%>
                 <div class="sm:hidden space-y-2">
                   <div :for={host <- @connect_failed_hosts} class="card bg-base-200 p-3">
                     <form
@@ -208,7 +209,7 @@
                       <div class="flex justify-between items-start mb-2">
                         <div class="flex-1">
                           <p class="text-xs text-base-content/70">
-                            失败 {host.count} 次 · {format_timestamp(host.timestamp)}
+                            {host.count} failures · {format_timestamp(host.timestamp)}
                           </p>
                         </div>
                         <span class="badge badge-error badge-xs gap-1">
@@ -227,14 +228,14 @@
                         class="select select-bordered select-xs w-full"
                         required
                       >
-                        <option value="">选择 Profile</option>
+                        <option value="">Pick a profile</option>
                         <%= for profile_name <- @available_profiles do %>
                           <option value={profile_name}>{profile_name}</option>
                         <% end %>
                       </select>
                       <div class="flex gap-2">
                         <button type="submit" class="btn btn-primary btn-xs flex-1 gap-1">
-                          <.icon name="hero-plus" class="size-3" /> 创建
+                          <.icon name="hero-plus" class="size-3" /> Create
                         </button>
                         <button
                           type="button"
@@ -258,11 +259,11 @@
                     class="size-5 text-info flex-shrink-0 mt-0.5"
                   />
                   <div class="text-sm text-base-content/80">
-                    <p class="font-semibold mb-1">提示：</p>
+                    <p class="font-semibold mb-1">Tips</p>
                     <ul class="list-disc list-inside space-y-1">
-                      <li>可以修改匹配模式，支持通配符 * 和 ?</li>
-                      <li>选择要关联的 Profile 后点击"创建"按钮</li>
-                      <li>创建成功后会自动清除该失败记录</li>
+                      <li>The pattern can be edited, and supports the * and ? wildcards</li>
+                      <li>Pick the profile to route to, then press "Create"</li>
+                      <li>Creating the rule clears the matching failure record</li>
                     </ul>
                   </div>
                 </div>
@@ -273,7 +274,7 @@
       </div>
     <% end %>
 
-    <%!-- Conditions 列表 --%>
+    <%!-- Condition list --%>
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body p-0">
         <div class="overflow-x-auto max-h-[calc(100vh-24rem)] overflow-y-auto">
@@ -281,17 +282,17 @@
             <thead>
               <tr>
                 <th class="w-16">ID</th>
-                <th class="w-96">匹配规则</th>
-                <th class="w-48">关联 Profile</th>
-                <th class="w-24">状态</th>
-                <th class="text-right">操作</th>
+                <th class="w-96">Rule</th>
+                <th class="w-48">Profile</th>
+                <th class="w-24">Status</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="conditions" phx-update="stream">
-              <%!-- 新建表单行 --%>
+              <%!-- New condition form row --%>
               <%= if @show_new_form do %>
                 <tr id="new-condition-row" class="bg-base-200">
-                  <td class="font-mono text-sm">新建</td>
+                  <td class="font-mono text-sm">New</td>
                   <td>
                     <input
                       type="text"
@@ -309,7 +310,7 @@
                       class="select select-bordered select-sm w-full"
                       required
                     >
-                      <option value="">选择 Profile</option>
+                      <option value="">Pick a profile</option>
                       <%= for profile_name <- @available_profiles do %>
                         <option value={profile_name}>{profile_name}</option>
                       <% end %>
@@ -321,21 +322,21 @@
                       form="new-condition-form"
                       class="select select-bordered select-sm w-24"
                     >
-                      <option value="true" selected>已启用</option>
-                      <option value="false">已禁用</option>
+                      <option value="true" selected>Enabled</option>
+                      <option value="false">Disabled</option>
                     </select>
                   </td>
                   <td>
                     <form id="new-condition-form" phx-submit="save_new">
                       <div class="flex justify-end gap-2">
-                        <button type="submit" class="btn btn-sm btn-success gap-1" title="创建">
+                        <button type="submit" class="btn btn-sm btn-success gap-1" title="Create">
                           <.icon name="hero-check" class="size-4" />
                         </button>
                         <button
                           type="button"
                           phx-click="cancel_new"
                           class="btn btn-sm btn-ghost"
-                          title="取消"
+                          title="Cancel"
                         >
                           <.icon name="hero-x-mark" class="size-4" />
                         </button>
@@ -348,15 +349,15 @@
               <tr :if={@conditions_empty? && !@show_new_form} id="empty-state">
                 <td colspan="5" class="text-center py-8 text-base-content/60">
                   <%= if @search_query != "" || @filter_status != "all" || @filter_profile != "all" do %>
-                    没有找到匹配的 Condition
+                    No matching condition
                   <% else %>
-                    暂无 Condition，点击上方按钮创建
+                    No conditions yet, create one with the button above
                   <% end %>
                 </td>
               </tr>
               <tr :for={{id, condition} <- @streams.conditions} id={id} class="hover">
                 <%= if @editing_id == condition.id do %>
-                  <%!-- 编辑模式 --%>
+                  <%!-- Edit mode --%>
                   <td class="font-mono text-sm">{condition.id}</td>
                   <td>
                     <input
@@ -391,8 +392,8 @@
                       form={"edit-form-#{condition.id}"}
                       class="select select-bordered select-sm w-24"
                     >
-                      <option value="true" selected={condition.enabled}>已启用</option>
-                      <option value="false" selected={!condition.enabled}>已禁用</option>
+                      <option value="true" selected={condition.enabled}>Enabled</option>
+                      <option value="false" selected={!condition.enabled}>Disabled</option>
                     </select>
                   </td>
                   <td>
@@ -402,14 +403,14 @@
                     >
                       <input type="hidden" name="condition_id" value={condition.id} />
                       <div class="flex justify-end gap-2">
-                        <button type="submit" class="btn btn-sm btn-success gap-1" title="保存">
+                        <button type="submit" class="btn btn-sm btn-success gap-1" title="Save">
                           <.icon name="hero-check" class="size-4" />
                         </button>
                         <button
                           type="button"
                           phx-click="cancel_edit"
                           class="btn btn-sm btn-ghost"
-                          title="取消"
+                          title="Cancel"
                         >
                           <.icon name="hero-x-mark" class="size-4" />
                         </button>
@@ -417,7 +418,7 @@
                     </form>
                   </td>
                 <% else %>
-                  <%!-- 查看模式 --%>
+                  <%!-- Read-only mode --%>
                   <td class="font-mono text-sm">{condition.id}</td>
                   <td>
                     <code class="text-sm bg-base-200 px-2 py-1 rounded">
@@ -432,22 +433,22 @@
                   <td>
                     <%= if condition.enabled do %>
                       <span class="badge badge-success gap-1 whitespace-nowrap">
-                        <.icon name="hero-check-circle" class="size-4" /> 已启用
+                        <.icon name="hero-check-circle" class="size-4" /> Enabled
                       </span>
                     <% else %>
                       <span class="badge badge-ghost gap-1 whitespace-nowrap">
-                        <.icon name="hero-x-circle" class="size-4" /> 已禁用
+                        <.icon name="hero-x-circle" class="size-4" /> Disabled
                       </span>
                     <% end %>
                   </td>
                   <td>
                     <div class="flex justify-end gap-2">
-                      <%!-- 启用/禁用切换 --%>
+                      <%!-- Enable/disable toggle --%>
                       <button
                         phx-click="toggle_enable"
                         phx-value-id={condition.id}
                         class="btn btn-sm btn-ghost"
-                        title={if condition.enabled, do: "禁用", else: "启用"}
+                        title={if condition.enabled, do: "Disable", else: "Enable"}
                       >
                         <%= if condition.enabled do %>
                           <.icon name="hero-pause" class="size-4" />
@@ -456,22 +457,22 @@
                         <% end %>
                       </button>
 
-                      <%!-- 编辑 --%>
+                      <%!-- Edit --%>
                       <button
                         phx-click="start_edit"
                         phx-value-id={condition.id}
                         class="btn btn-sm btn-ghost"
-                        title="编辑"
+                        title="Edit"
                       >
                         <.icon name="hero-pencil" class="size-4" />
                       </button>
 
-                      <%!-- 删除 --%>
+                      <%!-- Delete --%>
                       <button
                         phx-click="delete_confirm"
                         phx-value-id={condition.id}
                         class="btn btn-sm btn-ghost text-error hover:bg-error/10"
-                        title="删除"
+                        title="Delete"
                       >
                         <.icon name="hero-trash" class="size-4" />
                       </button>
@@ -485,30 +486,31 @@
       </div>
     </div>
 
-    <%!-- 删除确认对话框 --%>
+    <%!-- Delete confirmation dialog --%>
     <%= if @delete_id do %>
       <div class="modal modal-open">
         <div class="modal-box">
-          <h3 class="font-bold text-lg mb-4">确认删除</h3>
+          <h3 class="font-bold text-lg mb-4">Confirm deletion</h3>
           <p class="py-4">
-            确定要删除 Condition <span class="font-bold">#{@delete_id}</span> 吗？
+            Delete condition <span class="font-bold">#{@delete_id}</span>?
           </p>
           <p class="text-sm text-warning">
-            <.icon name="hero-exclamation-triangle" class="size-4 inline" /> 此操作将删除该匹配规则。
+            <.icon name="hero-exclamation-triangle" class="size-4 inline" />
+            This removes the routing rule.
           </p>
           <div class="modal-action">
             <button
               phx-click="delete_cancel"
               class="btn btn-ghost"
             >
-              取消
+              Cancel
             </button>
             <button
               phx-click="delete"
               phx-value-id={@delete_id}
               class="btn btn-error"
             >
-              确认删除
+              Delete
             </button>
           </div>
         </div>

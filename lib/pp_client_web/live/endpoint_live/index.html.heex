@@ -1,27 +1,27 @@
 <Layouts.app flash={@flash}>
   <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
     <.header>
-      Endpoint 管理
-      <:subtitle>管理代理服务端点配置</:subtitle>
+      Endpoints
+      <:subtitle>Manage the local proxy listeners</:subtitle>
       <:actions>
         <button phx-click="show_new_form" class="btn btn-primary btn-sm gap-1">
           <.icon name="hero-plus" class="size-4 sm:size-5" />
-          <span class="hidden sm:inline">新建 Endpoint</span>
-          <span class="sm:hidden">新建</span>
+          <span class="hidden sm:inline">New Endpoint</span>
+          <span class="sm:hidden">New</span>
         </button>
       </:actions>
     </.header>
 
-    <%!-- 搜索和筛选栏 --%>
+    <%!-- Search and filter bar --%>
     <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
-      <%!-- 搜索框 --%>
+      <%!-- Search box --%>
       <div class="flex-1">
         <form phx-change="search" phx-submit="search" class="relative">
           <input
             type="text"
             name="search"
             value={@search_query}
-            placeholder="搜索端口或类型..."
+            placeholder="Search by port or type..."
             class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
             autocomplete="off"
           />
@@ -32,7 +32,7 @@
         </form>
       </div>
 
-      <%!-- 状态筛选 --%>
+      <%!-- Status filter --%>
       <div class="flex gap-2 flex-wrap sm:flex-nowrap">
         <button
           phx-click="filter"
@@ -43,7 +43,7 @@
             @filter_status != "all" && "btn-ghost"
           ]}
         >
-          全部
+          All
         </button>
         <button
           phx-click="filter"
@@ -54,7 +54,7 @@
             @filter_status != "enabled" && "btn-ghost"
           ]}
         >
-          已启用
+          Enabled
         </button>
         <button
           phx-click="filter"
@@ -65,29 +65,29 @@
             @filter_status != "disabled" && "btn-ghost"
           ]}
         >
-          已禁用
+          Disabled
         </button>
       </div>
     </div>
 
-    <%!-- Endpoints 列表 - 桌面端表格视图 --%>
+    <%!-- Endpoint list, desktop table view --%>
     <div class="hidden md:block card bg-base-100 shadow-xl">
       <div class="card-body p-0">
         <div class="overflow-x-auto max-h-[calc(100vh-20rem)] overflow-y-auto">
           <table class="table table-zebra table-sm">
             <thead>
               <tr>
-                <th class="w-20">端口</th>
-                <th class="w-32">类型</th>
-                <th class="w-32">IP 地址</th>
-                <th class="w-32">绑定 Profile</th>
-                <th class="w-24">状态</th>
-                <th class="w-24">运行状态</th>
-                <th class="text-right">操作</th>
+                <th class="w-20">Port</th>
+                <th class="w-32">Type</th>
+                <th class="w-32">IP address</th>
+                <th class="w-32">Profile</th>
+                <th class="w-24">Status</th>
+                <th class="w-24">Runtime</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="endpoints" phx-update="stream">
-              <%!-- 新建表单行 --%>
+              <%!-- New endpoint form row --%>
               <%= if @show_new_form do %>
                 <tr id="new-endpoint-row" class="bg-base-200">
                   <td>
@@ -111,7 +111,7 @@
                     >
                       <option value="socks5">SOCKS5</option>
                       <option value="http">HTTP</option>
-                      <option value="auto">自动检测</option>
+                      <option value="auto">Auto-detect</option>
                       <option value="http_to_socks5">HTTP → SOCKS5</option>
                     </select>
                   </td>
@@ -132,7 +132,7 @@
                       form="new-endpoint-form"
                       class="select select-bordered select-sm w-full"
                     >
-                      <option value="">无</option>
+                      <option value="">None</option>
                       <option :for={profile <- @profiles} value={profile.name}>
                         {profile.name}
                       </option>
@@ -144,30 +144,30 @@
                       form="new-endpoint-form"
                       class="select select-bordered select-sm w-24"
                     >
-                      <option value="true" selected>已启用</option>
-                      <option value="false">已禁用</option>
+                      <option value="true" selected>Enabled</option>
+                      <option value="false">Disabled</option>
                     </select>
                   </td>
                   <td>
                     <span class="badge badge-ghost gap-1 whitespace-nowrap">
                       <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
-                      未创建
+                      Not created
                     </span>
                   </td>
                   <td>
-                    <span class="text-xs text-base-content/60">待创建</span>
+                    <span class="text-xs text-base-content/60">Pending</span>
                   </td>
                   <td>
                     <form id="new-endpoint-form" phx-submit="save_new">
                       <div class="flex justify-end gap-2">
-                        <button type="submit" class="btn btn-sm btn-success gap-1" title="创建">
+                        <button type="submit" class="btn btn-sm btn-success gap-1" title="Create">
                           <.icon name="hero-check" class="size-4" />
                         </button>
                         <button
                           type="button"
                           phx-click="cancel_new"
                           class="btn btn-sm btn-ghost"
-                          title="取消"
+                          title="Cancel"
                         >
                           <.icon name="hero-x-mark" class="size-4" />
                         </button>
@@ -180,15 +180,15 @@
               <tr :if={@endpoints_empty? && !@show_new_form} id="empty-state">
                 <td colspan="7" class="text-center py-8 text-base-content/60">
                   <%= if @search_query != "" || @filter_status != "all" do %>
-                    没有找到匹配的 Endpoint
+                    No matching endpoint
                   <% else %>
-                    暂无 Endpoint，点击上方按钮创建
+                    No endpoints yet, create one with the button above
                   <% end %>
                 </td>
               </tr>
               <tr :for={{id, endpoint} <- @streams.endpoints} id={id} class="hover">
                 <%= if @editing_port == endpoint.port do %>
-                  <%!-- 编辑模式 --%>
+                  <%!-- Edit mode --%>
                   <td>
                     <input
                       type="number"
@@ -210,7 +210,7 @@
                     >
                       <option value="socks5" selected={endpoint.type == :socks5}>SOCKS5</option>
                       <option value="http" selected={endpoint.type == :http}>HTTP</option>
-                      <option value="auto" selected={endpoint.type == :auto}>自动检测</option>
+                      <option value="auto" selected={endpoint.type == :auto}>Auto-detect</option>
                       <option value="http_to_socks5" selected={endpoint.type == :http_to_socks5}>
                         HTTP → SOCKS5
                       </option>
@@ -233,7 +233,7 @@
                       form={"edit-form-#{endpoint.port}"}
                       class="select select-bordered select-sm w-full"
                     >
-                      <option value="">无</option>
+                      <option value="">None</option>
                       <option
                         :for={profile <- @profiles}
                         value={profile.name}
@@ -249,8 +249,8 @@
                       form={"edit-form-#{endpoint.port}"}
                       class="select select-bordered select-sm w-24"
                     >
-                      <option value="true" selected={endpoint.enable}>已启用</option>
-                      <option value="false" selected={!endpoint.enable}>已禁用</option>
+                      <option value="true" selected={endpoint.enable}>Enabled</option>
+                      <option value="false" selected={!endpoint.enable}>Disabled</option>
                     </select>
                   </td>
                   <td>
@@ -258,12 +258,12 @@
                       <span class="badge badge-info gap-1 whitespace-nowrap">
                         <span class="inline-block size-2 rounded-full bg-info-content animate-pulse">
                         </span>
-                        运行中
+                        Running
                       </span>
                     <% else %>
                       <span class="badge badge-ghost gap-1 whitespace-nowrap">
                         <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
-                        已停止
+                        Stopped
                       </span>
                     <% end %>
                   </td>
@@ -274,14 +274,14 @@
                     >
                       <input type="hidden" name="port" value={endpoint.port} />
                       <div class="flex justify-end gap-2">
-                        <button type="submit" class="btn btn-sm btn-success gap-1" title="保存">
+                        <button type="submit" class="btn btn-sm btn-success gap-1" title="Save">
                           <.icon name="hero-check" class="size-4" />
                         </button>
                         <button
                           type="button"
                           phx-click="cancel_edit"
                           class="btn btn-sm btn-ghost"
-                          title="取消"
+                          title="Cancel"
                         >
                           <.icon name="hero-x-mark" class="size-4" />
                         </button>
@@ -289,7 +289,7 @@
                     </form>
                   </td>
                 <% else %>
-                  <%!-- 查看模式 --%>
+                  <%!-- Read-only mode --%>
                   <td class="font-mono font-semibold">{endpoint.port}</td>
                   <td>
                     <span class="badge badge-outline whitespace-nowrap">
@@ -301,17 +301,17 @@
                     <%= if profile_name = Keyword.get(endpoint.options, :profile) do %>
                       <span class="badge badge-primary badge-sm">{profile_name}</span>
                     <% else %>
-                      <span class="text-xs text-base-content/40">无</span>
+                      <span class="text-xs text-base-content/40">None</span>
                     <% end %>
                   </td>
                   <td>
                     <%= if endpoint.enable do %>
                       <span class="badge badge-success gap-1 whitespace-nowrap">
-                        <.icon name="hero-check-circle" class="size-4" /> 已启用
+                        <.icon name="hero-check-circle" class="size-4" /> Enabled
                       </span>
                     <% else %>
                       <span class="badge badge-ghost gap-1 whitespace-nowrap">
-                        <.icon name="hero-x-circle" class="size-4" /> 已禁用
+                        <.icon name="hero-x-circle" class="size-4" /> Disabled
                       </span>
                     <% end %>
                   </td>
@@ -320,23 +320,23 @@
                       <span class="badge badge-info gap-1 whitespace-nowrap">
                         <span class="inline-block size-2 rounded-full bg-info-content animate-pulse">
                         </span>
-                        运行中
+                        Running
                       </span>
                     <% else %>
                       <span class="badge badge-ghost gap-1 whitespace-nowrap">
                         <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
-                        已停止
+                        Stopped
                       </span>
                     <% end %>
                   </td>
                   <td>
                     <div class="flex justify-end gap-2">
-                      <%!-- 启用/禁用切换 --%>
+                      <%!-- Enable/disable toggle --%>
                       <button
                         phx-click="toggle_enable"
                         phx-value-port={endpoint.port}
                         class="btn btn-sm btn-ghost"
-                        title={if endpoint.enable, do: "禁用", else: "启用"}
+                        title={if endpoint.enable, do: "Disable", else: "Enable"}
                       >
                         <%= if endpoint.enable do %>
                           <.icon name="hero-pause" class="size-4" />
@@ -344,31 +344,31 @@
                           <.icon name="hero-play" class="size-4" />
                         <% end %>
                       </button>
-                      <%!-- 重启 --%>
+                      <%!-- Restart --%>
                       <button
                         :if={endpoint.enable && running?(endpoint)}
                         phx-click="restart"
                         phx-value-port={endpoint.port}
                         class="btn btn-sm btn-ghost"
-                        title="重启"
+                        title="Restart"
                       >
                         <.icon name="hero-arrow-path" class="size-4" />
                       </button>
-                      <%!-- 编辑 --%>
+                      <%!-- Edit --%>
                       <button
                         phx-click="start_edit"
                         phx-value-port={endpoint.port}
                         class="btn btn-sm btn-ghost"
-                        title="编辑"
+                        title="Edit"
                       >
                         <.icon name="hero-pencil" class="size-4" />
                       </button>
-                      <%!-- 删除 --%>
+                      <%!-- Delete --%>
                       <button
                         phx-click="delete_confirm"
                         phx-value-port={endpoint.port}
                         class="btn btn-sm btn-ghost text-error hover:bg-error/10"
-                        title="删除"
+                        title="Delete"
                       >
                         <.icon name="hero-trash" class="size-4" />
                       </button>
@@ -382,16 +382,16 @@
       </div>
     </div>
 
-    <%!-- Endpoints 列表 - 移动端卡片视图 --%>
+    <%!-- Endpoint list, mobile card view --%>
     <div class="md:hidden space-y-3">
-      <%!-- 新建表单卡片 --%>
+      <%!-- New endpoint form card --%>
       <%= if @show_new_form do %>
         <div class="card bg-base-200 shadow-lg">
           <div class="card-body p-4">
-            <h3 class="card-title text-base mb-3">新建 Endpoint</h3>
+            <h3 class="card-title text-base mb-3">New Endpoint</h3>
             <form id="new-endpoint-form-mobile" phx-submit="save_new" class="space-y-3">
               <div>
-                <label class="label label-text text-xs">端口</label>
+                <label class="label label-text text-xs">Port</label>
                 <input
                   type="number"
                   name="port"
@@ -403,16 +403,16 @@
                 />
               </div>
               <div>
-                <label class="label label-text text-xs">类型</label>
+                <label class="label label-text text-xs">Type</label>
                 <select name="type" class="select select-bordered select-sm w-full" required>
                   <option value="socks5">SOCKS5</option>
                   <option value="http">HTTP</option>
-                  <option value="auto">自动检测</option>
+                  <option value="auto">Auto-detect</option>
                   <option value="http_to_socks5">HTTP → SOCKS5</option>
                 </select>
               </div>
               <div>
-                <label class="label label-text text-xs">IP 地址</label>
+                <label class="label label-text text-xs">IP address</label>
                 <input
                   type="text"
                   name="ip"
@@ -423,31 +423,31 @@
                 />
               </div>
               <div>
-                <label class="label label-text text-xs">绑定 Profile</label>
+                <label class="label label-text text-xs">Profile</label>
                 <select name="profile" class="select select-bordered select-sm w-full">
-                  <option value="">无</option>
+                  <option value="">None</option>
                   <option :for={profile <- @profiles} value={profile.name}>
                     {profile.name}
                   </option>
                 </select>
               </div>
               <div>
-                <label class="label label-text text-xs">状态</label>
+                <label class="label label-text text-xs">Status</label>
                 <select name="enable" class="select select-bordered select-sm w-full">
-                  <option value="true" selected>已启用</option>
-                  <option value="false">已禁用</option>
+                  <option value="true" selected>Enabled</option>
+                  <option value="false">Disabled</option>
                 </select>
               </div>
               <div class="flex gap-2 pt-2">
                 <button type="submit" class="btn btn-success btn-sm flex-1 gap-1">
-                  <.icon name="hero-check" class="size-4" /> 创建
+                  <.icon name="hero-check" class="size-4" /> Create
                 </button>
                 <button
                   type="button"
                   phx-click="cancel_new"
                   class="btn btn-ghost btn-sm flex-1"
                 >
-                  取消
+                  Cancel
                 </button>
               </div>
             </form>
@@ -455,22 +455,22 @@
         </div>
       <% end %>
 
-      <%!-- 空状态 --%>
+      <%!-- Empty state --%>
       <%= if @endpoints_empty? && !@show_new_form do %>
         <div class="card bg-base-100 shadow-lg">
           <div class="card-body text-center py-12">
             <p class="text-base-content/60">
               <%= if @search_query != "" || @filter_status != "all" do %>
-                没有找到匹配的 Endpoint
+                No matching endpoint
               <% else %>
-                暂无 Endpoint，点击上方按钮创建
+                No endpoints yet, create one with the button above
               <% end %>
             </p>
           </div>
         </div>
       <% end %>
 
-      <%!-- Endpoint 卡片列表 --%>
+      <%!-- Endpoint cards --%>
       <div id="endpoints-mobile" phx-update="stream">
         <div
           :for={{id, endpoint} <- @streams.endpoints}
@@ -479,7 +479,7 @@
         >
           <div class="card-body p-4">
             <%= if @editing_port == endpoint.port do %>
-              <%!-- 编辑模式 --%>
+              <%!-- Edit mode --%>
               <form
                 id={"edit-form-mobile-#{endpoint.port}"}
                 phx-submit="save_edit"
@@ -487,7 +487,7 @@
               >
                 <input type="hidden" name="port" value={endpoint.port} />
                 <div>
-                  <label class="label label-text text-xs">端口</label>
+                  <label class="label label-text text-xs">Port</label>
                   <input
                     type="number"
                     name="new_port"
@@ -499,18 +499,18 @@
                   />
                 </div>
                 <div>
-                  <label class="label label-text text-xs">类型</label>
+                  <label class="label label-text text-xs">Type</label>
                   <select name="type" class="select select-bordered select-sm w-full" required>
                     <option value="socks5" selected={endpoint.type == :socks5}>SOCKS5</option>
                     <option value="http" selected={endpoint.type == :http}>HTTP</option>
-                    <option value="auto" selected={endpoint.type == :auto}>自动检测</option>
+                    <option value="auto" selected={endpoint.type == :auto}>Auto-detect</option>
                     <option value="http_to_socks5" selected={endpoint.type == :http_to_socks5}>
                       HTTP → SOCKS5
                     </option>
                   </select>
                 </div>
                 <div>
-                  <label class="label label-text text-xs">IP 地址</label>
+                  <label class="label label-text text-xs">IP address</label>
                   <input
                     type="text"
                     name="ip"
@@ -521,9 +521,9 @@
                   />
                 </div>
                 <div>
-                  <label class="label label-text text-xs">绑定 Profile</label>
+                  <label class="label label-text text-xs">Profile</label>
                   <select name="profile" class="select select-bordered select-sm w-full">
-                    <option value="">无</option>
+                    <option value="">None</option>
                     <option
                       :for={profile <- @profiles}
                       value={profile.name}
@@ -534,27 +534,27 @@
                   </select>
                 </div>
                 <div>
-                  <label class="label label-text text-xs">状态</label>
+                  <label class="label label-text text-xs">Status</label>
                   <select name="enable" class="select select-bordered select-sm w-full">
-                    <option value="true" selected={endpoint.enable}>已启用</option>
-                    <option value="false" selected={!endpoint.enable}>已禁用</option>
+                    <option value="true" selected={endpoint.enable}>Enabled</option>
+                    <option value="false" selected={!endpoint.enable}>Disabled</option>
                   </select>
                 </div>
                 <div class="flex gap-2 pt-2">
                   <button type="submit" class="btn btn-success btn-sm flex-1 gap-1">
-                    <.icon name="hero-check" class="size-4" /> 保存
+                    <.icon name="hero-check" class="size-4" /> Save
                   </button>
                   <button
                     type="button"
                     phx-click="cancel_edit"
                     class="btn btn-ghost btn-sm flex-1"
                   >
-                    取消
+                    Cancel
                   </button>
                 </div>
               </form>
             <% else %>
-              <%!-- 查看模式 --%>
+              <%!-- Read-only mode --%>
               <div class="flex justify-between items-start mb-3">
                 <div>
                   <h3 class="font-bold text-lg font-mono">{endpoint.port}</h3>
@@ -562,11 +562,11 @@
                     <span class="badge badge-outline badge-sm">{type_label(endpoint.type)}</span>
                     <%= if endpoint.enable do %>
                       <span class="badge badge-success badge-sm gap-1">
-                        <.icon name="hero-check-circle" class="size-3" /> 已启用
+                        <.icon name="hero-check-circle" class="size-3" /> Enabled
                       </span>
                     <% else %>
                       <span class="badge badge-ghost badge-sm gap-1">
-                        <.icon name="hero-x-circle" class="size-3" /> 已禁用
+                        <.icon name="hero-x-circle" class="size-3" /> Disabled
                       </span>
                     <% end %>
                   </div>
@@ -575,11 +575,12 @@
                   <span class="badge badge-info badge-sm gap-1">
                     <span class="inline-block size-2 rounded-full bg-info-content animate-pulse">
                     </span>
-                    运行中
+                    Running
                   </span>
                 <% else %>
                   <span class="badge badge-ghost badge-sm gap-1">
-                    <span class="inline-block size-2 rounded-full bg-base-content/30"></span> 已停止
+                    <span class="inline-block size-2 rounded-full bg-base-content/30"></span>
+                    Stopped
                   </span>
                 <% end %>
               </div>
@@ -597,12 +598,12 @@
                   phx-click="toggle_enable"
                   phx-value-port={endpoint.port}
                   class="btn btn-sm btn-ghost flex-1"
-                  title={if endpoint.enable, do: "禁用", else: "启用"}
+                  title={if endpoint.enable, do: "Disable", else: "Enable"}
                 >
                   <%= if endpoint.enable do %>
-                    <.icon name="hero-pause" class="size-4" /> 禁用
+                    <.icon name="hero-pause" class="size-4" /> Disable
                   <% else %>
-                    <.icon name="hero-play" class="size-4" /> 启用
+                    <.icon name="hero-play" class="size-4" /> Enable
                   <% end %>
                 </button>
                 <button
@@ -610,7 +611,7 @@
                   phx-click="restart"
                   phx-value-port={endpoint.port}
                   class="btn btn-sm btn-ghost"
-                  title="重启"
+                  title="Restart"
                 >
                   <.icon name="hero-arrow-path" class="size-4" />
                 </button>
@@ -618,7 +619,7 @@
                   phx-click="start_edit"
                   phx-value-port={endpoint.port}
                   class="btn btn-sm btn-ghost"
-                  title="编辑"
+                  title="Edit"
                 >
                   <.icon name="hero-pencil" class="size-4" />
                 </button>
@@ -626,7 +627,7 @@
                   phx-click="delete_confirm"
                   phx-value-port={endpoint.port}
                   class="btn btn-sm btn-ghost text-error"
-                  title="删除"
+                  title="Delete"
                 >
                   <.icon name="hero-trash" class="size-4" />
                 </button>
@@ -637,27 +638,28 @@
       </div>
     </div>
 
-    <%!-- 删除确认对话框 --%>
+    <%!-- Delete confirmation dialog --%>
     <%= if @delete_port do %>
       <div class="modal modal-open">
         <div class="modal-box max-w-sm sm:max-w-md">
-          <h3 class="font-bold text-base sm:text-lg mb-4">确认删除</h3>
+          <h3 class="font-bold text-base sm:text-lg mb-4">Confirm deletion</h3>
           <p class="py-4 text-sm sm:text-base">
-            确定要删除端口 <span class="font-mono font-bold">{@delete_port}</span> 的 Endpoint 吗？
+            Delete the endpoint on port <span class="font-mono font-bold">{@delete_port}</span>?
           </p>
           <p class="text-xs sm:text-sm text-warning">
-            <.icon name="hero-exclamation-triangle" class="size-4 inline" /> 此操作将停止该端点的服务并删除配置。
+            <.icon name="hero-exclamation-triangle" class="size-4 inline" />
+            This stops the listener and removes its configuration.
           </p>
           <div class="modal-action">
             <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">
-              取消
+              Cancel
             </button>
             <button
               phx-click="delete"
               phx-value-port={@delete_port}
               class="btn btn-error btn-sm"
             >
-              确认删除
+              Delete
             </button>
           </div>
         </div>
