@@ -19,11 +19,6 @@ defmodule PpClient.Socks5Client do
 
   @spec connect(tuple(), map() | keyword(), pid()) ::
           {:ok, :gen_tcp.socket()} | {:error, term()}
-  def connect(target, %{servers: servers}, owner) do
-    server = Enum.random(servers)
-    connect(target, [{:type, server.type} | server.opts], owner)
-  end
-
   def connect(target, setting, owner) when is_list(setting) do
     connect(target, Map.new(setting), owner)
   end

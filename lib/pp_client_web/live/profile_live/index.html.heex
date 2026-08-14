@@ -63,12 +63,14 @@
                   <span class="badge badge-outline">{type_label(profile.type)}</span>
                 </td>
                 <td>
-                  <%= if profile.type == :direct do %>
+                  <%= if profile.type == :direct or profile.servers in [nil, []] do %>
                     <span class="text-base-content/50">-</span>
                   <% else %>
-                    <span class="badge badge-ghost">
-                      {length(profile.servers || [])}
-                    </span>
+                    <div class="flex gap-1 flex-wrap">
+                      <span :for={name <- profile.servers} class="badge badge-ghost">
+                        {name}
+                      </span>
+                    </div>
                   <% end %>
                 </td>
                 <td>
@@ -164,8 +166,8 @@
                     </span>
                   <% end %>
                   <%= if profile.type != :direct do %>
-                    <span class="badge badge-ghost badge-sm">
-                      {length(profile.servers || [])} servers
+                    <span :for={name <- profile.servers || []} class="badge badge-ghost badge-sm">
+                      {name}
                     </span>
                   <% end %>
                 </div>
@@ -243,151 +245,38 @@
               label="Enabled"
             />
 
-            <%!-- Server configuration, remote profiles only --%>
-            <%= if @form[:type].value == :remote || @form[:type].value == "remote" do %>
+            <%!-- Server selection, remote profiles only --%>
+            <%= if @form[:type].value in [:remote, "remote"] do %>
               <div class="divider">Servers</div>
 
-              <%!-- Server validation errors --%>
-              <%= if @form.errors[:servers] do %>
-                <div class="alert alert-error">
-                  <.icon name="hero-exclamation-circle" class="size-5" />
-                  <span>{elem(@form.errors[:servers], 0)}</span>
+              <%= if @servers == [] do %>
+                <div class="alert alert-warning">
+                  <.icon name="hero-exclamation-triangle" class="size-5" />
+                  <span>
+                    No servers defined yet. <.link navigate={~p"/admin/servers"} class="link">Add one first</.link>.
+                  </span>
                 </div>
+              <% else %>
+                <%!-- The blank entry keeps the servers key in the params even when
+                     nothing is selected, so clearing the picker really clears the
+                     list instead of leaving the stored one in place. It is dropped
+                     in ProfileSchema.changeset/2. --%>
+                <input type="hidden" name="profile_schema[servers][]" value="" />
+                <.input
+                  field={@form[:servers]}
+                  type="select"
+                  multiple
+                  label="Servers"
+                  class="w-full select h-40"
+                  options={Enum.map(@servers, &server_option/1)}
+                />
+                <p class="text-xs text-base-content/60 -mt-1 mb-2">
+                  One is picked at random per connection, which doubles as failover.
+                  Manage them on the
+                  <.link navigate={~p"/admin/servers"} class="link">Servers</.link>
+                  page.
+                </p>
               <% end %>
-
-              <div class="space-y-4">
-                <%= for {index, server_data} <- @server_forms do %>
-                  <div class="card bg-base-200 p-4">
-                    <div class="flex justify-between items-center mb-3">
-                      <h4 class="font-semibold">Server #{index + 1}</h4>
-                      <button
-                        type="button"
-                        phx-click="remove_server"
-                        phx-value-index={index}
-                        class="btn btn-sm btn-ghost btn-circle text-error"
-                      >
-                        <.icon name="hero-x-mark" class="size-5" />
-                      </button>
-                    </div>
-
-                    <input
-                      type="hidden"
-                      name={"profile_schema[servers][#{index}][_index]"}
-                      value={index}
-                    />
-
-                    <.input
-                      name={"profile_schema[servers][#{index}][type]"}
-                      id={"profile_schema_servers_#{index}_type"}
-                      value={server_data["type"]}
-                      type="select"
-                      label="Server type"
-                      options={[
-                        {"EXPS", "exps"},
-                        {"CF Workers", "cf-workers"},
-                        {"SOCKS5", "socks5"}
-                      ]}
-                      required
-                    />
-
-                    <.input
-                      name={"profile_schema[servers][#{index}][enable]"}
-                      id={"profile_schema_servers_#{index}_enable"}
-                      value={server_data["enable"]}
-                      type="checkbox"
-                      label="Enable this server"
-                    />
-
-                    <%!-- EXPS fields --%>
-                    <%= if server_data["type"] == "exps" do %>
-                      <.input
-                        name={"profile_schema[servers][#{index}][uri]"}
-                        id={"profile_schema_servers_#{index}_uri"}
-                        value={server_data["uri"]}
-                        type="text"
-                        label="WebSocket URI"
-                        placeholder="wss://example.com/ws"
-                        required
-                      />
-
-                      <.input
-                        name={"profile_schema[servers][#{index}][encrypt_type]"}
-                        id={"profile_schema_servers_#{index}_encrypt_type"}
-                        value={server_data["encrypt_type"] || "none"}
-                        type="select"
-                        label="Encryption"
-                        options={[
-                          {"None", "none"},
-                          {"Once", "once"}
-                        ]}
-                      />
-
-                      <.input
-                        name={"profile_schema[servers][#{index}][encrypt_key]"}
-                        id={"profile_schema_servers_#{index}_encrypt_key"}
-                        value={Redact.reveal(server_data["encrypt_key"])}
-                        type="text"
-                        label="Encryption key (optional)"
-                        placeholder="encryption-key"
-                      />
-                    <% end %>
-
-                    <%!-- CF Workers fields --%>
-                    <%= if server_data["type"] == "cf-workers" do %>
-                      <.input
-                        name={"profile_schema[servers][#{index}][uri]"}
-                        id={"profile_schema_servers_#{index}_uri"}
-                        value={server_data["uri"]}
-                        type="text"
-                        label="WebSocket URI"
-                        placeholder="wss://worker.example.com"
-                        required
-                      />
-
-                      <.input
-                        name={"profile_schema[servers][#{index}][password]"}
-                        id={"profile_schema_servers_#{index}_password"}
-                        value={Redact.reveal(server_data["password"])}
-                        type="password"
-                        label="Password"
-                        placeholder="password"
-                        required
-                      />
-                    <% end %>
-
-                    <%!-- SOCKS5 fields --%>
-                    <%= if server_data["type"] == "socks5" do %>
-                      <.input
-                        name={"profile_schema[servers][#{index}][host]"}
-                        id={"profile_schema_servers_#{index}_host"}
-                        value={server_data["host"]}
-                        type="text"
-                        label="Host"
-                        placeholder="127.0.0.1"
-                        required
-                      />
-
-                      <.input
-                        name={"profile_schema[servers][#{index}][port]"}
-                        id={"profile_schema_servers_#{index}_port"}
-                        value={server_data["port"]}
-                        type="number"
-                        label="Port"
-                        placeholder="1080"
-                        required
-                      />
-                    <% end %>
-                  </div>
-                <% end %>
-
-                <button
-                  type="button"
-                  phx-click="add_server"
-                  class="btn btn-outline btn-block"
-                >
-                  <.icon name="hero-plus" class="size-5" /> Add server
-                </button>
-              </div>
             <% end %>
 
             <div class="modal-action">

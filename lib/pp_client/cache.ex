@@ -2,13 +2,23 @@ defmodule PpClient.Cache do
   @moduledoc """
   Cache
 
-  Caches all enabled conditions and maps profiles to servers.
+  Caches all enabled conditions.
 
-  Cache structure: `{condition_pattern, profile_type, servers}`
+  Cache structure: `{condition_pattern, profile_name}`
   where:
-  - `condition_pattern`: the regex pattern from the condition
-  - `profile_type`: `:direct` or `:remote`
-  - `servers`: list of `PpClient.ProxyServer.t()` structs
+  - `condition_pattern`: the regex pattern from the condition, or `:all`
+  - `profile_name`: the profile that pattern routes to
+
+  Only the link between a pattern and a profile is cached, because that is the
+  only part of the decision that is expensive to recompute. The profile, its
+  server names and the servers themselves are all resolved when a connection is
+  dialled, so editing a profile or a server takes effect on the next connection
+  rather than on the next `refresh/0`.
+
+  That matters more than the lookups it costs: a cached route that no longer
+  resolves does not fail closed. `AutoSwitchClient.route/1` falls through to
+  `:direct`, so a stale entry here would silently send matched traffic
+  unproxied.
   """
   use GenServer
   require Logger
@@ -61,26 +71,19 @@ defmodule PpClient.Cache do
     # Get all enabled conditions
     enabled_conditions = ConditionManager.enabled_conditions()
 
-    # Build cache entries for each enabled condition
+    # A condition naming a profile that does not exist is still cached — it is
+    # resolved on the connect path like any other, and skipped there. The warning
+    # is only so the mistake is visible to whoever is editing conditions.
     cache_entries =
-      Enum.reduce(enabled_conditions, [], fn condition, acc ->
-        case ProfileManager.get_profile(condition.profile_name) do
-          {:ok, %{enabled: true, type: type, servers: servers}} ->
-            # Only cache if the profile is also enabled
-            [{condition.condition, type, servers} | acc]
-
-          {:ok, _profile} ->
-            acc
-
-          {:error, :not_found} ->
-            Logger.warning(
-              "Skipping condition #{condition.id}: profile '#{condition.profile_name}' not found"
-            )
-
-            acc
+      Enum.map(enabled_conditions, fn condition ->
+        unless ProfileManager.exists?(condition.profile_name) do
+          Logger.warning(
+            "Condition #{condition.id}: profile '#{condition.profile_name}' not found"
+          )
         end
+
+        {condition.condition, condition.profile_name}
       end)
-      |> Enum.reverse()
 
     # Insert all cache entries
     :ets.insert(@table, {:conditions, cache_entries})

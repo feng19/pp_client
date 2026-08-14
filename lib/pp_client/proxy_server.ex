@@ -5,14 +5,19 @@ defmodule PpClient.ProxyServer do
   - type: "exps", enable: boolean, opts: [uri: "wss://ws.example.com/ws", encrypt_type: :none | :once, encrypt_key: encrypt_key]
   - type: "cf-workers", enable: boolean, opts: [uri: "wss://ws.example.com", password: password]
   - type: "socks5", enable: boolean, opts: [host: "127.0.0.1", port: 1088]
+
+  `name` is the identity a profile refers to. It is the key servers are stored
+  under in `PpClient.ServerManager`, and the key of the `servers:` entry in
+  `pp.exs` — a profile lists names, never server definitions.
   """
 
-  @enforce_keys [:type, :opts]
-  defstruct type: nil, client_type: nil, enable: true, opts: nil
+  @enforce_keys [:name, :type, :opts]
+  defstruct name: nil, type: nil, client_type: nil, enable: true, opts: nil
 
   @type client_type() :: :direct | :ws | :socks5
 
   @type t :: %__MODULE__{
+          name: String.t(),
           type: String.t(),
           client_type: client_type(),
           enable: boolean(),
@@ -23,20 +28,25 @@ defmodule PpClient.ProxyServer do
   Builds an EXPS proxy server.
 
   ## Parameters
+    - name: the name profiles refer to
     - uri: WebSocket endpoint
     - encrypt_type: encryption type (:none | :once)
     - encrypt_key: encryption key
 
   ## Examples
-      iex> PpClient.ProxyServer.exps("wss://ws.example.com/ws", :none, nil)
+      iex> PpClient.ProxyServer.exps("my_exps", "wss://ws.example.com/ws", :none, nil)
       %PpClient.ProxyServer{
+        name: "my_exps",
         type: "exps",
         enable: true,
         opts: %{uri: "wss://ws.example.com/ws", encrypt_type: :none, encrypt_key: nil}
       }
   """
-  def exps(uri, encrypt_type \\ :none, encrypt_key \\ nil) do
+  # No defaults: with them this would still define exps/3, so every pre-name call
+  # site would keep compiling with every argument shifted one to the right.
+  def exps(name, uri, encrypt_type, encrypt_key) do
     %__MODULE__{
+      name: name,
       type: "exps",
       client_type: :ws,
       enable: true,
@@ -52,19 +62,22 @@ defmodule PpClient.ProxyServer do
   Builds a Cloudflare Workers proxy server.
 
   ## Parameters
+    - name: the name profiles refer to
     - uri: WebSocket endpoint
     - password: authentication password
 
   ## Examples
-      iex> PpClient.ProxyServer.cf_workers("wss://ws.example.com", "secret")
+      iex> PpClient.ProxyServer.cf_workers("my_cf", "wss://ws.example.com", "secret")
       %PpClient.ProxyServer{
+        name: "my_cf",
         type: "cf-workers",
         enable: true,
         opts: %{uri: "wss://ws.example.com", password: "secret"}
       }
   """
-  def cf_workers(uri, password) do
+  def cf_workers(name, uri, password) do
     %__MODULE__{
+      name: name,
       type: "cf-workers",
       client_type: :ws,
       enable: true,
@@ -79,19 +92,22 @@ defmodule PpClient.ProxyServer do
   Builds a SOCKS5 proxy server.
 
   ## Parameters
+    - name: the name profiles refer to
     - host: proxy server address
     - port: proxy server port
 
   ## Examples
-      iex> PpClient.ProxyServer.socks5("127.0.0.1", 1088)
+      iex> PpClient.ProxyServer.socks5("local_socks", "127.0.0.1", 1088)
       %PpClient.ProxyServer{
+        name: "local_socks",
         type: "socks5",
         enable: true,
         opts: %{host: "127.0.0.1", port: 1088}
       }
   """
-  def socks5(host, port) do
+  def socks5(name, host, port) do
     %__MODULE__{
+      name: name,
       type: "socks5",
       client_type: :socks5,
       enable: true,
@@ -114,6 +130,12 @@ defmodule PpClient.ProxyServer do
       {:ok, server} -> server
       {:error, reason} -> raise reason
     end
+  end
+
+  # A nameless server cannot be referred to by a profile, so it is not a server
+  # this application can route through — reject it before looking at the type.
+  def validate(%__MODULE__{name: name}) when not is_binary(name) or name == "" do
+    {:error, "Server name is required"}
   end
 
   def validate(%__MODULE__{type: type} = server) do

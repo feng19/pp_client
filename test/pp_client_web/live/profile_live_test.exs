@@ -6,11 +6,14 @@ defmodule PpClientWeb.ProfileLiveTest do
   alias PpClient.ProfileManager
   alias PpClient.ProxyProfile
   alias PpClient.ProxyServer
+  alias PpClient.ServerManager
 
   @moduletag capture_log: true
 
+  @server_name "socks5-local"
+
   setup do
-    # Clean out the test data
+    # Profiles first: a server a profile still refers to cannot be deleted.
     ProfileManager.all_profiles()
     |> Enum.each(fn profile ->
       unless profile.name == "direct" do
@@ -18,7 +21,13 @@ defmodule PpClientWeb.ProfileLiveTest do
       end
     end)
 
-    :ok
+    Enum.each(ServerManager.all_servers(), &ServerManager.delete_server(&1.name))
+
+    # The picker only offers servers that exist, and LiveViewTest refuses to
+    # submit a select value that is not among the rendered options.
+    {:ok, server} = ServerManager.add_server(ProxyServer.socks5(@server_name, "127.0.0.1", 1080))
+
+    %{server: server}
   end
 
   describe "Index" do
@@ -35,7 +44,7 @@ defmodule PpClientWeb.ProfileLiveTest do
         name: "test-profile",
         type: :remote,
         enabled: true,
-        servers: [ProxyServer.socks5("127.0.0.1", 1080)]
+        servers: [@server_name]
       }
 
       ProfileManager.add_profile(profile)
@@ -84,11 +93,6 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "creates direct profile", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Remove the default server first: a direct profile needs none
-      view
-      |> element("button[phx-click='remove_server'][phx-value-index='0']")
-      |> render_click()
-
       assert view
              |> form("#profile-form",
                profile_schema: %{
@@ -110,26 +114,13 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "creates remote profile with servers", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Switch the type to remote, which already has a default server
-      view
-      |> form("#profile-form", profile_schema: %{type: :remote, name: "new-remote"})
-      |> render_change()
-
-      # Submit the form with the default server
       assert view
              |> form("#profile-form",
                profile_schema: %{
                  name: "new-remote",
                  type: :remote,
                  enabled: true,
-                 servers: %{
-                   "0" => %{
-                     type: "socks5",
-                     enable: true,
-                     host: "127.0.0.1",
-                     port: 1080
-                   }
-                 }
+                 servers: [@server_name]
                }
              )
              |> render_submit()
@@ -139,7 +130,7 @@ defmodule PpClientWeb.ProfileLiveTest do
       {:ok, profile} = ProfileManager.get_profile("new-remote")
       assert profile.name == "new-remote"
       assert profile.type == :remote
-      assert length(profile.servers) == 1
+      assert profile.servers == [@server_name]
     end
 
     test "validates required fields", %{conn: conn} do
@@ -187,12 +178,8 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "validates remote profile must have at least one server", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Remove the default server first
-      view
-      |> element("button[phx-click='remove_server'][phx-value-index='0']")
-      |> render_click()
-
-      # Try to submit a remote profile with no server
+      # Submitting with nothing selected: the form always posts a blank
+      # servers[] entry, so the empty list really reaches the changeset.
       html =
         view
         |> form("#profile-form",
@@ -204,9 +191,8 @@ defmodule PpClientWeb.ProfileLiveTest do
         )
         |> render_submit()
 
-      # The validation error shows up in the flash message
-      assert html =~ "Save failed"
-      assert html =~ "Remote profile must have at least one server"
+      assert html =~ "remote proxy profile must have at least one server"
+      refute ProfileManager.exists?("remote-no-servers")
       # The form is still there, no redirect happened
       assert has_element?(view, "#profile-form")
     end
@@ -214,26 +200,17 @@ defmodule PpClientWeb.ProfileLiveTest do
     test "allows creating remote profile with servers", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Pick the remote type, which already has a default server
       view
       |> form("#profile-form", profile_schema: %{type: :remote, name: "remote-with-server"})
       |> render_change()
 
-      # Submitting with the default server should succeed
       assert view
              |> form("#profile-form",
                profile_schema: %{
                  name: "remote-with-server",
                  type: :remote,
                  enabled: true,
-                 servers: %{
-                   "0" => %{
-                     type: "socks5",
-                     enable: true,
-                     host: "127.0.0.1",
-                     port: 1080
-                   }
-                 }
+                 servers: [@server_name]
                }
              )
              |> render_submit()
@@ -242,7 +219,7 @@ defmodule PpClientWeb.ProfileLiveTest do
 
       {:ok, profile} = ProfileManager.get_profile("remote-with-server")
       assert profile.type == :remote
-      assert length(profile.servers) == 1
+      assert profile.servers == [@server_name]
     end
   end
 
@@ -412,247 +389,38 @@ defmodule PpClientWeb.ProfileLiveTest do
     end
   end
 
-  describe "Server Management" do
-    test "adds server to profile form", %{conn: conn} do
+  describe "Server picker" do
+    test "offers the defined servers by name", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Pick the remote type
-      view
-      |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
-      |> render_change()
-
-      # Add a server
-      html =
-        view
-        |> element("button[phx-click='add_server']")
-        |> render_click()
-
-      assert html =~ "Server #1"
-      assert html =~ "Server type"
+      assert has_element?(view, "#profile_schema_servers option[value='#{@server_name}']")
     end
 
-    test "removes server from profile form", %{conn: conn} do
-      profile = %ProxyProfile{
-        name: "server-test",
-        type: :remote,
-        enabled: true,
-        servers: [
-          ProxyServer.socks5("127.0.0.1", 1080)
-        ]
-      }
+    test "marks a disabled server so it is not picked by mistake", %{conn: conn} do
+      {:ok, _} = ServerManager.disable_server(@server_name)
 
-      ProfileManager.add_profile(profile)
+      {:ok, _view, html} = live(conn, ~p"/admin/profiles/new")
 
-      {:ok, view, _html} = live(conn, ~p"/admin/profiles/server-test/edit")
-
-      # Remove the server
-      html =
-        view
-        |> element("button[phx-click='remove_server'][phx-value-index='0']")
-        |> render_click()
-
-      refute html =~ "Server 1"
+      assert html =~ "#{@server_name} (disabled)"
     end
 
-    test "displays SOCKS5 specific fields", %{conn: conn} do
+    test "points at the Servers page when there is nothing to pick", %{conn: conn} do
+      :ok = ServerManager.delete_server(@server_name)
+
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Pick the remote type and add a server
-      view
-      |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
-      |> render_change()
-
-      view
-      |> element("button[phx-click='add_server']")
-      |> render_click()
-
-      # SOCKS5 is the default type, so the host and port fields show up
-      html = render(view)
-      assert html =~ "Host"
-      assert html =~ "Port"
-      refute html =~ "WebSocket URI"
-      refute html =~ "Password"
-      refute html =~ "Encryption"
+      refute has_element?(view, "#profile_schema_servers")
+      # Scoped to the modal: the navbar links there from every page.
+      assert has_element?(view, ".modal a[href='/admin/servers']")
     end
 
-    test "displays EXPS specific fields when server type changes", %{conn: conn} do
+    test "refreshes when a server is added elsewhere", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
 
-      # Pick the remote type
-      view
-      |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
-      |> render_change()
+      {:ok, _} = ServerManager.add_server(ProxyServer.socks5("late-arrival", "127.0.0.1", 1099))
+      Phoenix.PubSub.broadcast(PpClient.PubSub, "servers", {:server_updated, nil})
 
-      # Change the default server type to EXPS
-      html =
-        view
-        |> form("#profile-form",
-          profile_schema: %{
-            type: :remote,
-            name: "test",
-            servers: %{
-              "0" => %{type: "exps"}
-            }
-          }
-        )
-        |> render_change()
-
-      # The EXPS specific fields show up
-      assert html =~ "WebSocket URI"
-      assert html =~ "Encryption"
-      assert html =~ "Encryption key"
-      # Note: with several servers possible, only check that the EXPS fields exist
-    end
-
-    test "displays CF Workers specific fields when server type changes", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/profiles/new")
-
-      # Pick the remote type
-      view
-      |> form("#profile-form", profile_schema: %{type: :remote, name: "test"})
-      |> render_change()
-
-      # Change the default server type to CF Workers
-      html =
-        view
-        |> form("#profile-form",
-          profile_schema: %{
-            type: :remote,
-            name: "test",
-            servers: %{
-              "0" => %{type: "cf-workers"}
-            }
-          }
-        )
-        |> render_change()
-
-      # The CF Workers specific fields show up
-      assert html =~ "WebSocket URI"
-      assert html =~ "Password"
-      # Note: with several servers possible, only check that the CF Workers fields exist
-    end
-
-    test "edits profile with EXPS server shows correct fields", %{conn: conn} do
-      profile = %ProxyProfile{
-        name: "exps-test",
-        type: :remote,
-        enabled: true,
-        servers: [
-          ProxyServer.exps("wss://example.com/ws", :none, nil)
-        ]
-      }
-
-      ProfileManager.add_profile(profile)
-
-      {:ok, _view, html} = live(conn, ~p"/admin/profiles/exps-test/edit")
-
-      # The EXPS specific fields show up
-      assert html =~ "WebSocket URI"
-      assert html =~ "Encryption"
-      assert html =~ "wss://example.com/ws"
-    end
-
-    test "edits profile with CF Workers server shows correct fields", %{conn: conn} do
-      profile = %ProxyProfile{
-        name: "cf-test",
-        type: :remote,
-        enabled: true,
-        servers: [
-          ProxyServer.cf_workers("wss://worker.example.com", "secret123")
-        ]
-      }
-
-      ProfileManager.add_profile(profile)
-
-      {:ok, _view, html} = live(conn, ~p"/admin/profiles/cf-test/edit")
-
-      # The CF Workers specific fields show up
-      assert html =~ "WebSocket URI"
-      assert html =~ "Password"
-      assert html =~ "wss://worker.example.com"
-    end
-
-    test "edits profile with SOCKS5 server shows correct fields", %{conn: conn} do
-      profile = %ProxyProfile{
-        name: "socks5-test",
-        type: :remote,
-        enabled: true,
-        servers: [
-          ProxyServer.socks5("192.168.1.100", 1088)
-        ]
-      }
-
-      ProfileManager.add_profile(profile)
-
-      {:ok, _view, html} = live(conn, ~p"/admin/profiles/socks5-test/edit")
-
-      # The SOCKS5 specific fields show up
-      assert html =~ "Host"
-      assert html =~ "Port"
-      assert html =~ "192.168.1.100"
-      assert html =~ "1088"
-    end
-  end
-
-  describe "Credentials in LiveView state" do
-    @password "sup3r-s3cret-cf-workers-password"
-
-    setup do
-      profile = %ProxyProfile{
-        name: "redact-test",
-        type: :remote,
-        enabled: true,
-        servers: [ProxyServer.cf_workers("wss://worker.example.com", @password)]
-      }
-
-      ProfileManager.add_profile(profile)
-      :ok
-    end
-
-    test "the edit form still renders the stored password", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/profiles/redact-test/edit")
-
-      assert html =~ @password
-    end
-
-    test "a crash would not print the stored password", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/profiles/redact-test/edit")
-
-      refute printed_state(view) =~ @password
-    end
-
-    test "a crash would not print a password being typed", %{conn: conn} do
-      typed = "just-typed-#{@password}"
-
-      {:ok, view, _html} = live(conn, ~p"/admin/profiles/redact-test/edit")
-
-      html =
-        view
-        |> form("#profile-form",
-          profile_schema: %{
-            name: "redact-test",
-            type: :remote,
-            servers: %{
-              "0" => %{
-                type: "cf-workers",
-                uri: "wss://worker.example.com",
-                password: typed
-              }
-            }
-          }
-        )
-        |> render_change()
-
-      # The field keeps what was typed into it, and the state still does not say what.
-      assert html =~ typed
-      refute printed_state(view) =~ typed
-    end
-
-    # Everything a crash report would write out: assigns, the form, the changeset.
-    defp printed_state(view) do
-      view.pid
-      |> :sys.get_state()
-      |> inspect(limit: :infinity, printable_limit: :infinity)
+      assert has_element?(view, "#profile_schema_servers option[value='late-arrival']")
     end
   end
 

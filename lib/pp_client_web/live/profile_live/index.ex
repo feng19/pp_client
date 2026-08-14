@@ -2,13 +2,16 @@ defmodule PpClientWeb.ProfileLive.Index do
   use PpClientWeb, :live_view
 
   alias PpClient.ProfileManager
-  alias PpClient.Redact
   alias PpClient.Schemas.ProfileSchema
+  alias PpClient.ServerManager
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(PpClient.PubSub, "profiles")
+      # The picker lists the servers, so it has to follow them being added,
+      # renamed or removed on the Servers page.
+      Phoenix.PubSub.subscribe(PpClient.PubSub, "servers")
     end
 
     socket =
@@ -18,7 +21,7 @@ defmodule PpClientWeb.ProfileLive.Index do
       |> assign(:profiles_empty?, false)
       |> assign(:form, nil)
       |> assign(:delete_name, nil)
-      |> assign(:server_forms, [])
+      |> assign(:servers, ServerManager.all_servers())
       |> stream_configure(:profiles, dom_id: fn profile -> "profile-#{profile.name}" end)
       |> load_profiles()
 
@@ -34,56 +37,29 @@ defmodule PpClientWeb.ProfileLive.Index do
     socket
     |> assign(:page_title, "Profiles")
     |> assign(:form, nil)
-    |> assign(:server_forms, [])
   end
 
   defp apply_action(socket, :new, _params) do
     changeset = ProfileSchema.changeset(%ProfileSchema{}, %{})
 
-    # Start with one server form
-    default_server = %{"type" => "socks5", "enable" => true}
-
     socket
     |> assign(:page_title, "New Profile")
-    |> assign(:form, redacted_form(changeset))
+    |> assign(:form, to_form(changeset))
     |> assign(:editing_name, nil)
-    |> assign(:server_forms, [{0, default_server}])
   end
 
   defp apply_action(socket, :edit, %{"name" => name}) do
     case ProfileManager.get_profile(name) do
       {:ok, profile} ->
-        schema = ProfileSchema.from_profile(profile)
-        changeset = ProfileSchema.changeset(schema, %{})
-
-        server_forms =
-          if schema.servers do
-            Enum.with_index(schema.servers, fn server, idx ->
-              # Convert the server map to string keys
-              server_data =
-                if is_struct(server) do
-                  server
-                  |> Map.from_struct()
-                  |> Enum.map(fn {k, v} -> {to_string(k), v} end)
-                  |> Map.new()
-                else
-                  # Already a plain map, only the keys need stringifying
-                  server
-                  |> Enum.map(fn {k, v} -> {to_string(k), v} end)
-                  |> Map.new()
-                end
-
-              {idx, Redact.form_params(server_data)}
-            end)
-          else
-            []
-          end
+        changeset =
+          profile
+          |> ProfileSchema.from_profile()
+          |> ProfileSchema.changeset(%{})
 
         socket
         |> assign(:page_title, "Edit Profile")
-        |> assign(:form, redacted_form(changeset))
+        |> assign(:form, to_form(changeset))
         |> assign(:editing_name, name)
-        |> assign(:server_forms, server_forms)
 
       {:error, :not_found} ->
         socket
@@ -108,29 +84,13 @@ defmodule PpClientWeb.ProfileLive.Index do
       |> ProfileSchema.changeset(params)
       |> Map.put(:action, :validate)
 
-    # Refresh server_forms so the server type change is reflected
-    server_forms =
-      case params["servers"] do
-        nil ->
-          socket.assigns.server_forms
-
-        servers_params when is_map(servers_params) ->
-          servers_params
-          |> Enum.sort_by(fn {k, _v} -> String.to_integer(k) end)
-          |> Enum.map(fn {idx, server_data} ->
-            {String.to_integer(idx), Redact.form_params(server_data)}
-          end)
-      end
-
-    socket =
-      socket
-      |> assign(:form, redacted_form(changeset))
-      |> assign(:server_forms, server_forms)
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :form, to_form(changeset))}
   end
 
   def handle_event("save", %{"profile_schema" => params}, socket) do
+    # Cast onto an empty schema, never onto the profile being edited: `cast/3`
+    # skips keys the params do not carry, so loading the stored servers in first
+    # would make clearing the picker silently keep them.
     changeset = ProfileSchema.changeset(%ProfileSchema{}, params)
 
     case Ecto.Changeset.apply_action(changeset, :insert) do
@@ -152,26 +112,7 @@ defmodule PpClientWeb.ProfileLive.Index do
         end
 
       {:error, changeset} ->
-        # Refresh server_forms to keep the form state
-        server_forms =
-          case params["servers"] do
-            nil ->
-              []
-
-            servers_params when is_map(servers_params) ->
-              servers_params
-              |> Enum.sort_by(fn {k, _v} -> String.to_integer(k) end)
-              |> Enum.map(fn {idx, server_data} ->
-                {String.to_integer(idx), Redact.form_params(server_data)}
-              end)
-          end
-
-        socket =
-          socket
-          |> assign(:form, redacted_form(changeset))
-          |> assign(:server_forms, server_forms)
-
-        {:noreply, socket}
+        {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
 
@@ -229,38 +170,13 @@ defmodule PpClientWeb.ProfileLive.Index do
     end
   end
 
-  def handle_event("add_server", _params, socket) do
-    server_forms = socket.assigns.server_forms
-    new_index = length(server_forms)
-    new_server = %{"type" => "socks5", "enable" => true}
-
-    {:noreply, assign(socket, :server_forms, server_forms ++ [{new_index, new_server}])}
-  end
-
-  def handle_event("remove_server", %{"index" => index}, socket) do
-    index = String.to_integer(index)
-    server_forms = Enum.reject(socket.assigns.server_forms, fn {idx, _} -> idx == index end)
-
-    # Re-index the remaining forms
-    server_forms =
-      server_forms
-      |> Enum.with_index(fn {_old_idx, form}, new_idx -> {new_idx, form} end)
-
-    {:noreply, assign(socket, :server_forms, server_forms)}
-  end
-
   @impl true
   def handle_info({:profile_updated, _profile}, socket) do
     {:noreply, load_profiles(socket)}
   end
 
-  # `to_form/1` copies the submitted params onto the form struct, credentials and
-  # all, and a LiveView's assigns are written to the log whole when the process
-  # crashes. The credential inputs render from `@server_forms` rather than from
-  # the form, so nothing reads the copy the form keeps — see `Redact.params/1`.
-  defp redacted_form(changeset) do
-    form = to_form(changeset)
-    %{form | params: Redact.params(form.params)}
+  def handle_info({:server_updated, _server}, socket) do
+    {:noreply, assign(socket, :servers, ServerManager.all_servers())}
   end
 
   defp save_profile(socket, profile) do
@@ -325,4 +241,9 @@ defmodule PpClientWeb.ProfileLive.Index do
   defp type_label(:direct), do: "Direct"
   defp type_label(:remote), do: "Remote proxy"
   defp type_label(type), do: to_string(type)
+
+  defp server_option(server) do
+    label = if server.enable, do: server.name, else: "#{server.name} (disabled)"
+    {label, server.name}
+  end
 end

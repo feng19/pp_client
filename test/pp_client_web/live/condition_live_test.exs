@@ -7,7 +7,6 @@ defmodule PpClientWeb.ConditionLiveTest do
   alias PpClient.ProfileManager
   alias PpClient.Condition
   alias PpClient.ProxyProfile
-  alias PpClient.ProxyServer
 
   setup do
     # Clean out the test data
@@ -22,7 +21,7 @@ defmodule PpClientWeb.ConditionLiveTest do
         name: "test-profile",
         type: :remote,
         enabled: true,
-        servers: [ProxyServer.socks5("127.0.0.1", 1080)]
+        servers: ["test-socks"]
       }
 
       ProfileManager.add_profile(profile)

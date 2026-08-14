@@ -52,6 +52,11 @@ defmodule PpClientWeb.Layouts do
             </.link>
           </li>
           <li>
+            <.link navigate={~p"/admin/servers"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-cloud" class="size-5" /> Servers
+            </.link>
+          </li>
+          <li>
             <.link navigate={~p"/admin/profiles"} class="btn btn-ghost btn-sm">
               <.icon name="hero-server" class="size-5" /> Profiles
             </.link>
@@ -85,6 +90,11 @@ defmodule PpClientWeb.Layouts do
             <li>
               <.link navigate={~p"/admin/endpoints"} class="flex items-center gap-2">
                 <.icon name="hero-server" class="size-5" /> Endpoints
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/admin/servers"} class="flex items-center gap-2">
+                <.icon name="hero-cloud" class="size-5" /> Servers
               </.link>
             </li>
             <li>

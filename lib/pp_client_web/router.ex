@@ -25,6 +25,10 @@ defmodule PpClientWeb.Router do
 
     live "/endpoints", EndpointLive.Index, :index
 
+    live "/servers", ServerLive.Index, :index
+    live "/servers/new", ServerLive.Index, :new
+    live "/servers/:name/edit", ServerLive.Index, :edit
+
     live "/profiles", ProfileLive.Index, :index
     live "/profiles/new", ProfileLive.Index, :new
     live "/profiles/:name/edit", ProfileLive.Index, :edit

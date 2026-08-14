@@ -1,0 +1,342 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+    <.header>
+      Servers
+      <:subtitle>
+        Upstream proxy servers. Profiles route through these by name — servers added
+        here live in memory only, put the ones you want to keep in the
+        <code class="text-xs">servers:</code>
+        section of <code class="text-xs">pp.exs</code>.
+      </:subtitle>
+      <:actions>
+        <.button navigate={~p"/admin/servers/new"} class="btn-sm">
+          <.icon name="hero-plus" class="size-4 sm:size-5" />
+          <span class="hidden sm:inline ml-1">New Server</span>
+          <span class="sm:hidden">New</span>
+        </.button>
+      </:actions>
+    </.header>
+
+    <%!-- Search bar --%>
+    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
+      <div class="flex-1">
+        <form phx-change="search" phx-submit="search" class="relative">
+          <input
+            type="text"
+            name="search"
+            value={@search_query}
+            placeholder="Search by name, type or endpoint..."
+            class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
+            autocomplete="off"
+          />
+          <.icon
+            name="hero-magnifying-glass"
+            class="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 text-base-content/50"
+          />
+        </form>
+      </div>
+    </div>
+
+    <%!-- Server list, desktop table view --%>
+    <div class="hidden md:block card bg-base-100 shadow-xl">
+      <div class="card-body p-0">
+        <div class="overflow-x-auto max-h-[calc(100vh-20rem)] overflow-y-auto">
+          <table class="table table-zebra table-sm">
+            <thead>
+              <tr>
+                <th class="w-48">Name</th>
+                <th class="w-32">Type</th>
+                <th>Endpoint</th>
+                <th class="w-32">Used by</th>
+                <th class="w-24">Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="servers" phx-update="stream">
+              <tr :if={@servers_empty?} id="empty-state">
+                <td colspan="6" class="text-center py-8 text-base-content/60">
+                  <%= if @search_query != "" do %>
+                    No matching server
+                  <% else %>
+                    No servers yet, create one with the button above
+                  <% end %>
+                </td>
+              </tr>
+              <tr :for={{id, server} <- @streams.servers} id={id} class="hover">
+                <td class="font-semibold">{server.name}</td>
+                <td>
+                  <span class="badge badge-outline">{type_label(server.type)}</span>
+                </td>
+                <td class="font-mono text-xs break-all">{endpoint_label(server)}</td>
+                <td>
+                  <%= case ServerManager.references(server.name) do %>
+                    <% [] -> %>
+                      <span class="text-base-content/50">-</span>
+                    <% profiles -> %>
+                      <span class="badge badge-ghost" title={Enum.join(profiles, ", ")}>
+                        {Enum.join(profiles, ", ")}
+                      </span>
+                  <% end %>
+                </td>
+                <td>
+                  <%= if server.enable do %>
+                    <span class="badge badge-success gap-1 whitespace-nowrap">
+                      <.icon name="hero-check-circle" class="size-4" /> Enabled
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost gap-1 whitespace-nowrap">
+                      <.icon name="hero-x-circle" class="size-4" /> Disabled
+                    </span>
+                  <% end %>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <button
+                      phx-click="toggle_enable"
+                      phx-value-name={server.name}
+                      class="btn btn-sm btn-ghost"
+                      title={if server.enable, do: "Disable", else: "Enable"}
+                    >
+                      <%= if server.enable do %>
+                        <.icon name="hero-pause" class="size-4" />
+                      <% else %>
+                        <.icon name="hero-play" class="size-4" />
+                      <% end %>
+                    </button>
+
+                    <.button
+                      navigate={~p"/admin/servers/#{server.name}/edit"}
+                      class="btn btn-sm btn-ghost"
+                    >
+                      <.icon name="hero-pencil" class="size-4" />
+                    </.button>
+
+                    <button
+                      phx-click="delete_confirm"
+                      phx-value-name={server.name}
+                      class="btn btn-sm btn-ghost text-error hover:bg-error/10"
+                      title="Delete"
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Server list, mobile card view. Rendered from @servers rather than a
+         second stream container — see the comment on load_servers/1. --%>
+    <div class="md:hidden space-y-3">
+      <%= if @servers_empty? do %>
+        <div class="card bg-base-100 shadow-lg">
+          <div class="card-body text-center py-12">
+            <p class="text-base-content/60">
+              <%= if @search_query != "" do %>
+                No matching server
+              <% else %>
+                No servers yet, create one with the button above
+              <% end %>
+            </p>
+          </div>
+        </div>
+      <% end %>
+
+      <div
+        :for={server <- @servers}
+        id={"server-#{server.name}-mobile"}
+        class="card bg-base-100 shadow-lg"
+      >
+        <div class="card-body p-4">
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+              <h3 class="font-bold text-base">{server.name}</h3>
+              <p class="font-mono text-xs break-all text-base-content/60 mt-1">
+                {endpoint_label(server)}
+              </p>
+              <div class="flex gap-2 mt-2 flex-wrap">
+                <span class="badge badge-outline badge-sm">{type_label(server.type)}</span>
+                <%= if server.enable do %>
+                  <span class="badge badge-success badge-sm gap-1">
+                    <.icon name="hero-check-circle" class="size-3" /> Enabled
+                  </span>
+                <% else %>
+                  <span class="badge badge-ghost badge-sm gap-1">
+                    <.icon name="hero-x-circle" class="size-3" /> Disabled
+                  </span>
+                <% end %>
+                <%= for profile <- ServerManager.references(server.name) do %>
+                  <span class="badge badge-ghost badge-sm">{profile}</span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              phx-click="toggle_enable"
+              phx-value-name={server.name}
+              class="btn btn-sm btn-ghost flex-1"
+              title={if server.enable, do: "Disable", else: "Enable"}
+            >
+              <%= if server.enable do %>
+                <.icon name="hero-pause" class="size-4" /> Disable
+              <% else %>
+                <.icon name="hero-play" class="size-4" /> Enable
+              <% end %>
+            </button>
+            <.button
+              navigate={~p"/admin/servers/#{server.name}/edit"}
+              class="btn btn-sm btn-ghost"
+            >
+              <.icon name="hero-pencil" class="size-4" /> Edit
+            </.button>
+            <button
+              phx-click="delete_confirm"
+              phx-value-name={server.name}
+              class="btn btn-sm btn-ghost text-error"
+              title="Delete"
+            >
+              <.icon name="hero-trash" class="size-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Create/edit form modal --%>
+    <%= if @form do %>
+      <div class="modal modal-open">
+        <div class="modal-box max-w-2xl">
+          <h3 class="font-bold text-lg mb-4">
+            {if @editing_name, do: "Edit server", else: "New server"}
+          </h3>
+
+          <.form for={@form} id="server-form" phx-change="validate" phx-submit="save">
+            <.input
+              field={@form[:name]}
+              type="text"
+              label="Name"
+              placeholder="my_exps"
+              required
+            />
+
+            <.input
+              field={@form[:type]}
+              type="select"
+              label="Server type"
+              options={[
+                {"EXPS", "exps"},
+                {"CF Workers", "cf-workers"},
+                {"SOCKS5", "socks5"}
+              ]}
+              required
+            />
+
+            <.input field={@form[:enable]} type="checkbox" label="Enabled" />
+
+            <%!-- EXPS fields --%>
+            <%= if @form[:type].value in ["exps", :exps] do %>
+              <.input
+                field={@form[:uri]}
+                type="text"
+                label="WebSocket URI"
+                placeholder="wss://example.com/ws"
+                required
+              />
+
+              <.input
+                field={@form[:encrypt_type]}
+                type="select"
+                label="Encryption"
+                options={[{"None", "none"}, {"Once", "once"}]}
+              />
+
+              <%!-- Rendered from @secret_params, never from @form — see
+                   redacted_form/1 in the LiveView. --%>
+              <.input
+                name="server_schema[encrypt_key]"
+                id="server_schema_encrypt_key"
+                value={Redact.reveal(@secret_params["encrypt_key"])}
+                type="text"
+                label="Encryption key (optional)"
+                placeholder="encryption-key"
+              />
+            <% end %>
+
+            <%!-- CF Workers fields --%>
+            <%= if @form[:type].value in ["cf-workers", :"cf-workers"] do %>
+              <.input
+                field={@form[:uri]}
+                type="text"
+                label="WebSocket URI"
+                placeholder="wss://worker.example.com"
+                required
+              />
+
+              <.input
+                name="server_schema[password]"
+                id="server_schema_password"
+                value={Redact.reveal(@secret_params["password"])}
+                type="password"
+                label="Password"
+                placeholder="password"
+                required
+              />
+            <% end %>
+
+            <%!-- SOCKS5 fields --%>
+            <%= if @form[:type].value in ["socks5", :socks5] do %>
+              <.input
+                field={@form[:host]}
+                type="text"
+                label="Host"
+                placeholder="127.0.0.1"
+                required
+              />
+
+              <.input
+                field={@form[:port]}
+                type="number"
+                label="Port"
+                placeholder="1080"
+                required
+              />
+            <% end %>
+
+            <div class="modal-action">
+              <.button type="button" navigate={~p"/admin/servers"} class="btn btn-ghost">
+                Cancel
+              </.button>
+              <.button type="submit" variant="primary">Save</.button>
+            </div>
+          </.form>
+        </div>
+        <label class="modal-backdrop" phx-click={JS.navigate(~p"/admin/servers")}>
+          Close
+        </label>
+      </div>
+    <% end %>
+
+    <%!-- Delete confirmation dialog --%>
+    <%= if @delete_name do %>
+      <div class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="font-bold text-lg mb-4">Confirm deletion</h3>
+          <p class="py-4">
+            Delete the server <span class="font-bold">{@delete_name}</span>?
+          </p>
+          <div class="modal-action">
+            <button phx-click="delete_cancel" class="btn btn-ghost">Cancel</button>
+            <button phx-click="delete" phx-value-name={@delete_name} class="btn btn-error">
+              Delete
+            </button>
+          </div>
+        </div>
+        <label class="modal-backdrop" phx-click="delete_cancel">Close</label>
+      </div>
+    <% end %>
+  </div>
+</Layouts.app>

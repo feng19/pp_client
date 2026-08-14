@@ -39,7 +39,11 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
   ],
 
   # -- Upstream proxy servers --------------------------------------------
-  # The key is the atom that profiles refer to. enable defaults to true.
+  # The key is the atom that profiles refer to; a profile lists those keys and
+  # nothing else, so one server can back several profiles and is defined once.
+  # Also editable on the /admin/servers page, where web edits are lost on
+  # restart — keep the ones that matter here.
+  # enable defaults to true, and applies everywhere the server is referenced.
   # opts per type:
   #   "exps"       uri (ws/wss), encrypt_type (:none | :once), encrypt_key
   #   "cf-workers" uri (ws/wss), password
@@ -75,6 +79,8 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
   ],
 
   # -- Profiles ----------------------------------------------------------
+  # servers lists the keys from the section above — a profile refers to servers,
+  # it never defines them. An unknown key fails at startup.
   # type: :remote needs at least one server. With several, one is picked at
   # random per connection, which doubles as failover.
   # type: :direct connects directly and takes servers: [].

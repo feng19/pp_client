@@ -80,20 +80,29 @@ defmodule PpClient.RedactTest do
   end
 
   describe "params/1" do
-    test "blanks secrets nested as deep as the form nests them" do
+    test "blanks the secrets the server form posts" do
       params = %{
-        "name" => "work",
-        "servers" => %{
-          "0" => %{"type" => "cf-workers", "uri" => "wss://x", "password" => "s3cret"},
-          "1" => %{"type" => "exps", "encrypt_key" => "k3y"}
-        }
+        "name" => "my_cf",
+        "type" => "cf-workers",
+        "uri" => "wss://x",
+        "password" => "s3cret",
+        "encrypt_key" => "k3y"
       }
 
       redacted = Redact.params(params)
 
       refute inspect(redacted) =~ "s3cret"
       refute inspect(redacted) =~ "k3y"
-      assert redacted["servers"]["0"]["uri"] == "wss://x"
+      assert redacted["uri"] == "wss://x"
+      assert redacted["name"] == "my_cf"
+    end
+
+    test "blanks secrets however deeply they are nested" do
+      params = %{"name" => "work", "outer" => %{"inner" => %{"password" => "s3cret"}}}
+
+      redacted = Redact.params(params)
+
+      refute inspect(redacted) =~ "s3cret"
       assert redacted["name"] == "work"
     end
 
@@ -104,7 +113,7 @@ defmodule PpClient.RedactTest do
 
   describe "inspecting a server" do
     test "a cf-workers password is not printed" do
-      printed = inspect(ProxyServer.cf_workers("wss://pp.example.com", "s3cret"))
+      printed = inspect(ProxyServer.cf_workers("cf_test", "wss://pp.example.com", "s3cret"))
 
       refute printed =~ "s3cret"
       assert printed =~ "password: :redacted"
@@ -114,7 +123,7 @@ defmodule PpClient.RedactTest do
     end
 
     test "an exps encryption key is not printed" do
-      printed = inspect(ProxyServer.exps("wss://pp.example.com/ws", :once, "k3y"))
+      printed = inspect(ProxyServer.exps("exps_test", "wss://pp.example.com/ws", :once, "k3y"))
 
       refute printed =~ "k3y"
       assert printed =~ "encrypt_key: :redacted"
@@ -122,13 +131,17 @@ defmodule PpClient.RedactTest do
     end
 
     test "survives a nested server, where a stray inspect usually finds one" do
-      profile = %{servers: [ProxyServer.cf_workers("wss://pp.example.com", "s3cret")]}
+      profile = %{servers: [ProxyServer.cf_workers("cf_test", "wss://pp.example.com", "s3cret")]}
 
       refute inspect(profile) =~ "s3cret"
     end
 
     test "a setting given as a keyword list is redacted too" do
-      server = %ProxyServer{type: "cf-workers", opts: [uri: "wss://x", password: "s3cret"]}
+      server = %ProxyServer{
+        name: "cf_kw",
+        type: "cf-workers",
+        opts: [uri: "wss://x", password: "s3cret"]
+      }
 
       refute inspect(server) =~ "s3cret"
     end

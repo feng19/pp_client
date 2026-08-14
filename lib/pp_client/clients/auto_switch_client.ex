@@ -10,7 +10,16 @@ defmodule PpClient.AutoSwitchClient do
       because framing and the Mint connection live in it.
   """
   require Logger
-  alias PpClient.{Cache, DirectClient, ProfileManager, Redact, Socks5Client, WSClient}
+
+  alias PpClient.{
+    Cache,
+    DirectClient,
+    ProfileManager,
+    Redact,
+    ServerManager,
+    Socks5Client,
+    WSClient
+  }
 
   @type conn :: {:tcp, :gen_tcp.socket()} | {WSClient, pid()}
 
@@ -81,25 +90,40 @@ defmodule PpClient.AutoSwitchClient do
   def route(host) do
     Cache.conditions()
     |> Enum.find_value(fn
-      {:all, type, servers} ->
-        condition_route(type, servers)
+      {:all, profile_name} ->
+        condition_route(profile_name)
 
-      {regex, type, servers} ->
+      {regex, profile_name} ->
         if Regex.match?(regex, host) do
-          condition_route(type, servers)
+          condition_route(profile_name)
         end
     end)
     |> Kernel.||(:direct)
   end
 
-  # A condition pointing at a direct profile carries no servers, and a remote one
-  # without usable servers is skipped so the next condition gets a chance.
-  defp condition_route(:direct, _servers), do: :direct
-  defp condition_route(_type, servers), do: pick_server(servers)
+  # A condition pointing at a direct profile carries no servers, and one whose
+  # profile is missing, disabled or out of usable servers is skipped so the next
+  # condition gets a chance.
+  #
+  # The profile is read here rather than baked into the cache so that a profile
+  # or server edited in the admin UI applies to the next connection. A cached
+  # route that stopped resolving would fall through to `:direct` below — that is,
+  # it would send matched traffic unproxied.
+  defp condition_route(profile_name) do
+    case ProfileManager.get_profile(profile_name) do
+      {:ok, %{enabled: true, type: :direct}} -> :direct
+      {:ok, %{enabled: true, servers: servers}} -> pick_server(servers)
+      _other -> nil
+    end
+  end
 
   # nil when the profile has no server left to pick, disabled ones excluded.
-  defp pick_server(servers) do
-    case Enum.filter(servers, & &1.enable) do
+  #
+  # The names are resolved here, on the connect path, rather than when the
+  # profile was stored: an edit on the Servers page then applies to the next
+  # connection through every profile that refers to it, with no cache to refresh.
+  defp pick_server(names) do
+    case names |> ServerManager.fetch_many() |> Enum.filter(& &1.enable) do
       [] ->
         nil
 

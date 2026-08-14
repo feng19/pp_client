@@ -8,11 +8,6 @@ defmodule PpClient.WSClient do
   @sign_secret "90de3456asxdfrtg"
   @domain 0x03
 
-  def start_link(target, %{servers: servers}, parent) do
-    server = Enum.random(servers)
-    start_link(target, [{:type, server.type} | server.opts], parent)
-  end
-
   def start_link(target, setting, parent) when is_list(setting) do
     start_link(target, Map.new(setting), parent)
   end

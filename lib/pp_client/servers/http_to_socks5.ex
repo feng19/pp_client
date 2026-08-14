@@ -3,7 +3,7 @@ defmodule PpClient.HttpToSocks5 do
   use ThousandIsland.Handler
   use PpClient.Relay
   require Logger
-  alias PpClient.{AutoSwitchClient, Http, ProfileManager, Relay, Socks5Client}
+  alias PpClient.{AutoSwitchClient, Http, ProfileManager, Relay, ServerManager, Socks5Client}
 
   @impl ThousandIsland.Handler
   def handle_connection(_socket, opts) do
@@ -56,9 +56,11 @@ defmodule PpClient.HttpToSocks5 do
         {:error, :no_profile}
 
       name ->
-        with {:ok, %{enabled: true, servers: servers}} <- ProfileManager.get_profile(name),
+        with {:ok, %{enabled: true, servers: names}} <- ProfileManager.get_profile(name),
              [_ | _] = servers <-
-               Enum.filter(servers, &(&1.enable and &1.client_type == :socks5)) do
+               names
+               |> ServerManager.fetch_many()
+               |> Enum.filter(&(&1.enable and &1.client_type == :socks5)) do
           server = Enum.random(servers)
           {:ok, server.opts |> Map.new() |> Map.put(:type, server.type)}
         else
