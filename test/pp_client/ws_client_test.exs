@@ -3,6 +3,8 @@ defmodule PpClient.WSClientTest do
 
   import ExUnit.CaptureLog
 
+  alias PpClient.DnsRecord
+  alias PpClient.DnsRecordManager
   alias PpClient.WSClient
 
   @target {0x03, "example.com", 443}
@@ -92,6 +94,63 @@ defmodule PpClient.WSClientTest do
     assert_receive {:"$gen_cast", :close}
     assert log =~ "econnrefused"
     refute log =~ "terminating"
+  end
+
+  # `.invalid` never resolves (RFC 2606), so this only connects if the record is
+  # what the dial used.
+  test "a DNS record dials its IP while Host and Origin keep the domain" do
+    domain = "ws-dns-test.invalid"
+
+    {:ok, _record} =
+      DnsRecordManager.add_record(DnsRecord.new(%{domain: domain, ip: "127.0.0.1"}))
+
+    on_exit(fn -> DnsRecordManager.delete_record(domain) end)
+
+    {:ok, lsock} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(lsock)
+
+    {:ok, client} =
+      WSClient.start_link(@target, %{uri: "ws://#{domain}:#{port}/ws", type: "plain"}, self())
+
+    {:ok, sock} = :gen_tcp.accept(lsock, 5000)
+    {:ok, request} = :gen_tcp.recv(sock, 0, 5000)
+
+    assert request =~ "Host: #{domain}:#{port}\r\n"
+    assert request =~ "Origin: http://#{domain}:#{port}\r\n"
+    refute request =~ "127.0.0.1"
+
+    :ok = :gen_tcp.send(sock, handshake_reply(request))
+    assert_receive {:"$gen_cast", :connected}, 5000
+
+    # The dial went to the record's IP, not to the (unresolvable) domain.
+    assert Keyword.fetch!(:sys.get_state(client).opts, :uri).host == "127.0.0.1"
+
+    :gen_tcp.close(sock)
+    :gen_tcp.close(lsock)
+  end
+
+  test "a disabled DNS record is ignored" do
+    domain = "ws-dns-disabled.invalid"
+
+    {:ok, _record} =
+      DnsRecordManager.add_record(
+        DnsRecord.new(%{domain: domain, ip: "127.0.0.1", enable: false})
+      )
+
+    on_exit(fn -> DnsRecordManager.delete_record(domain) end)
+
+    log =
+      capture_log(fn ->
+        {:ok, client} =
+          WSClient.start_link(@target, %{uri: "ws://#{domain}:9/ws", type: "plain"}, self())
+
+        ref = Process.monitor(client)
+        assert_receive {:DOWN, ^ref, :process, ^client, :normal}, 5000
+      end)
+
+    assert log =~ "nxdomain"
   end
 
   defp setting(port), do: %{uri: "ws://localhost:#{port}/ws", type: "plain"}

@@ -1,6 +1,8 @@
 defmodule PpClient.Socks5ClientTest do
   use ExUnit.Case, async: true
 
+  alias PpClient.DnsRecord
+  alias PpClient.DnsRecordManager
   alias PpClient.Socks5Client
 
   @moduletag :capture_log
@@ -190,6 +192,44 @@ defmodule PpClient.Socks5ClientTest do
       send(proxy.pid, :expect_upstream)
       assert :ok = :gen_tcp.send(socket, "upstream")
       assert_receive {:upstream, {:ok, "upstream"}}, 5000
+    end
+  end
+
+  describe "connect/3 upstream address" do
+    # `.invalid` never resolves (RFC 2606), so the proxy is only reached if the
+    # DNS record is what the dial used.
+    test "an upstream host with a DNS record is dialled by its IP" do
+      domain = "socks5-dns-test.invalid"
+
+      {:ok, _record} =
+        DnsRecordManager.add_record(DnsRecord.new(%{domain: domain, ip: "127.0.0.1"}))
+
+      on_exit(fn -> DnsRecordManager.delete_record(domain) end)
+
+      proxy = start_proxy()
+
+      assert {:ok, _socket} =
+               Socks5Client.connect(
+                 {@domain, "example.com", 443},
+                 %{host: domain, port: proxy.port},
+                 self()
+               )
+
+      assert_receive {:connect_request, _request}, 5000
+    end
+
+    test "an upstream given as an IPv6 literal is dialled without a record" do
+      # Nothing listens on the IPv6 loopback discard port, so the dial fails on
+      # the transport. As a charlist the literal would have needed an explicit
+      # :inet6 and failed resolution with :nxdomain instead.
+      assert {:error, reason} =
+               Socks5Client.connect(
+                 {@domain, "example.com", 443},
+                 %{host: "::1", port: 9},
+                 self()
+               )
+
+      refute reason == :nxdomain
     end
   end
 end

@@ -2,7 +2,7 @@ defmodule PpClient.Application do
   @moduledoc false
   use Application
   require Logger
-  alias PpClient.{Condition, Endpoint, ProxyProfile, ProxyServer}
+  alias PpClient.{Condition, DnsRecord, Endpoint, ProxyProfile, ProxyServer}
 
   @supervisor PpClient.Supervisor
   if Mix.env() == :test do
@@ -34,6 +34,7 @@ defmodule PpClient.Application do
       [
         PpClient.ProfileManager,
         PpClient.ConditionManager,
+        PpClient.DnsRecordManager,
         PpClient.EndpointManager,
         PpClient.Cache
       ] ++ web_children ++ [PpClient.EndpointSupervisor]
@@ -55,6 +56,7 @@ defmodule PpClient.Application do
     :ets.new(:profiles, [:set, :public, :named_table, {:read_concurrency, true}])
     :ets.new(:conditions, [:set, :public, :named_table, {:read_concurrency, true}])
     :ets.new(:connect_failed, [:set, :public, :named_table, {:read_concurrency, true}])
+    :ets.new(:dns_records, [:set, :public, :named_table, {:read_concurrency, true}])
   end
 
   def load_config, do: load_config(@config_filename)
@@ -65,6 +67,7 @@ defmodule PpClient.Application do
       load_endpoints(config)
       load_profiles(config)
       load_conditions(config)
+      load_dns_records(config)
       config
     else
       Logger.warning("NOT found the #{filename}")
@@ -96,5 +99,12 @@ defmodule PpClient.Application do
     |> Condition.parse_conditions()
     |> Enum.map(&{&1.id, &1})
     |> then(&:ets.insert(:conditions, &1))
+  end
+
+  defp load_dns_records(config) do
+    (config[:dns] || [])
+    |> Stream.map(&DnsRecord.new/1)
+    |> Enum.map(&{&1.domain, &1})
+    |> then(&:ets.insert(:dns_records, &1))
   end
 end

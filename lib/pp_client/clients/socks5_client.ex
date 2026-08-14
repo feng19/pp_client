@@ -8,7 +8,7 @@ defmodule PpClient.Socks5Client do
   directions, with no relay process in between (see `PpClient.Relay`).
   """
   require Logger
-  alias PpClient.Relay
+  alias PpClient.{DnsRecordManager, Relay}
 
   @connect_timeout 10_000
   @recv_timeout 30_000
@@ -55,7 +55,7 @@ defmodule PpClient.Socks5Client do
 
   # Open the connection to the proxy server
   defp establish_proxy_connection(%{host: host, port: port}) do
-    case :gen_tcp.connect(String.to_charlist(host), port, @connect_opts, @connect_timeout) do
+    case :gen_tcp.connect(DnsRecordManager.address(host), port, @connect_opts, @connect_timeout) do
       {:ok, socket} ->
         Logger.debug("Connected to SOCKS5 proxy #{host}:#{port}")
         {:ok, socket}

@@ -21,10 +21,7 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
   web: %{
     server: true,
     # Loopback only. Use ip: {0, 0, 0, 0} to reach it from the local network.
-    http: [ip: {127, 0, 0, 1}, port: 8081],
-    check_origin: false
-    # url: [host: "localhost", port: 8081, scheme: "http"],
-    # secret_key_base: "64+ random bytes, generate one with `mix phx.gen.secret`"
+    http: [ip: {127, 0, 0, 1}, port: 8081]
   },
 
   # -- Local listeners ---------------------------------------------------
@@ -62,6 +59,19 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
       type: "exps",
       opts: [uri: "wss://backup.example.com/ws", encrypt_type: :none, encrypt_key: nil]
     }
+  ],
+
+  # -- DNS records -------------------------------------------------------
+  # Hand-maintained domain -> IP overrides for the upstream servers above.
+  # Before dialling a server, the client looks its hostname up here; a hit is
+  # dialled by IP (the TLS SNI and the Host header still carry the domain), a
+  # miss goes to the system resolver as usual. Nothing is resolved or cached
+  # automatically — these are the records you enter here or on the
+  # /admin/dns page, and web edits are lost on restart.
+  # enable defaults to true; false keeps the record around but ignores it.
+  dns: [
+    %{domain: "example.com", ip: "104.21.1.86"},
+    %{enable: false, domain: "backup.example.com", ip: "172.67.128.240"}
   ],
 
   # -- Profiles ----------------------------------------------------------

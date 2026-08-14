@@ -3,7 +3,7 @@ defmodule PpClient.WSClient do
   use Wind.Client
   require Logger
   alias Plug.Crypto.MessageEncryptor
-  alias PpClient.{BrowserHeaders, Redact, TLSProfile}
+  alias PpClient.{BrowserHeaders, DnsRecordManager, Redact, TLSProfile}
 
   @sign_secret "90de3456asxdfrtg"
   @domain 0x03
@@ -31,20 +31,33 @@ defmodule PpClient.WSClient do
       |> BrowserHeaders.headers(setting)
       |> BrowserHeaders.merge(get_headers_by_type(setting, target))
 
+    http_opts = [
+      protocols: [:http1],
+      # Mint lowercases every header name unless told otherwise; browsers do
+      # not, so this keeps the casing we set in BrowserHeaders.
+      case_sensitive_headers: true,
+      transport_opts: TLSProfile.transport_opts(uri, setting)
+    ]
+
+    # A DNS record for this host moves the dial to its IP and leaves the domain
+    # to Mint's `:hostname`, which is what SNI and the `Host` header are built
+    # from. The headers above are already built from the original URI — `Origin`
+    # among them — so they carry the domain either way.
+    {dial_uri, http_opts} = DnsRecordManager.dial(uri, http_opts)
+
     Wind.Client.start_link(__MODULE__,
-      uri: uri,
+      uri: dial_uri,
       headers: headers,
-      http_opts: [
-        protocols: [:http1],
-        # Mint lowercases every header name unless told otherwise; browsers do
-        # not, so this keeps the casing we set in BrowserHeaders.
-        case_sensitive_headers: true,
-        transport_opts: TLSProfile.transport_opts(uri, setting)
-      ],
+      http_opts: http_opts,
       # The setting is kept for diagnostics only — everything the tunnel needs
       # from it is already baked into `headers` and `first_frame` above — so the
       # copy in state is the redacted one.
-      pp: %{setting: Redact.setting(setting), first_frame: first_frame, parent: parent}
+      pp: %{
+        setting: Redact.setting(setting),
+        first_frame: first_frame,
+        parent: parent,
+        host: uri.host
+      }
     )
   end
 
@@ -105,9 +118,23 @@ defmodule PpClient.WSClient do
 
   def handle_error(reason, state) do
     uri = Keyword.fetch!(state.opts, :uri)
-    Logger.warning("ws client #{uri} error: #{inspect(reason)}")
+    Logger.warning("ws client #{uri}#{dns_note(state)} error: #{inspect(reason)}")
     close(state)
     {:stop, :normal, state}
+  end
+
+  # The URI above holds an IP whenever a DNS record was applied, so name the
+  # domain it came from — a record pointing at the wrong address is otherwise
+  # indistinguishable from an upstream that is simply down.
+  defp dns_note(state) do
+    uri = Keyword.fetch!(state.opts, :uri)
+    host = Keyword.fetch!(state.opts, :pp)[:host]
+
+    if is_binary(host) and host != uri.host do
+      " (DNS record #{host} -> #{uri.host})"
+    else
+      ""
+    end
   end
 
   # Until the upgrade lands there is no websocket, so Wind's decode clause does
