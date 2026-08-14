@@ -4,9 +4,10 @@
       Servers
       <:subtitle>
         Upstream proxy servers. Profiles route through these by name — servers added
-        here live in memory only, put the ones you want to keep in the
-        <code class="text-xs">servers:</code>
-        section of <code class="text-xs">pp.exs</code>.
+        here live in memory only; keep them past a restart by downloading a
+        <code class="text-xs">pp.exs</code>
+        from the <.link navigate={~p"/admin/config"} class="link link-primary">Config</.link>
+        page.
       </:subtitle>
       <:actions>
         <.button navigate={~p"/admin/servers/new"} class="btn-sm">

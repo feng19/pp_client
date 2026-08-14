@@ -6,6 +6,11 @@
 # This file is an Elixir script whose last expression must evaluate to a map.
 # All of the supported top-level keys are optional:
 # :web, :endpoints, :servers, :profiles and :conditions.
+#
+# The /admin/config page writes this format too: it downloads the running
+# configuration as a pp.exs, and imports one back over it. What it writes is flat
+# — no variables, no comments, and the environment lookups below already resolved
+# — so a hand-written file like this one is worth keeping if you want them.
 
 # Values can be bound up front and reused below. Keep secrets in the environment.
 encrypt_key = System.get_env("EXPS_ENCRYPT_KEY") || "change-me"
@@ -41,8 +46,8 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
   # -- Upstream proxy servers --------------------------------------------
   # The key is the atom that profiles refer to; a profile lists those keys and
   # nothing else, so one server can back several profiles and is defined once.
-  # Also editable on the /admin/servers page, where web edits are lost on
-  # restart — keep the ones that matter here.
+  # Also editable on the /admin/servers page, where edits live in memory only —
+  # keep the ones that matter here, or download them from /admin/config.
   # enable defaults to true, and applies everywhere the server is referenced.
   # opts per type:
   #   "exps"       uri (ws/wss), encrypt_type (:none | :once), encrypt_key
@@ -71,7 +76,7 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
   # dialled by IP (the TLS SNI and the Host header still carry the domain), a
   # miss goes to the system resolver as usual. Nothing is resolved or cached
   # automatically — these are the records you enter here or on the
-  # /admin/dns page, and web edits are lost on restart.
+  # /admin/dns page, where edits live in memory only.
   # enable defaults to true; false keeps the record around but ignores it.
   dns: [
     %{domain: "example.com", ip: "104.21.1.86"},

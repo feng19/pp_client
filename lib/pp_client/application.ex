@@ -2,7 +2,7 @@ defmodule PpClient.Application do
   @moduledoc false
   use Application
   require Logger
-  alias PpClient.{Condition, DnsRecord, Endpoint, ProxyProfile, ProxyServer}
+  alias PpClient.Config
 
   @supervisor PpClient.Supervisor
   if Mix.env() == :test do
@@ -63,72 +63,25 @@ defmodule PpClient.Application do
 
   def load_config, do: load_config(@config_filename)
 
+  @doc """
+  Reads a config file into the runtime tables and returns it.
+
+  The boot path, and the one place the filename is resolved — it is relative, so
+  it comes out of the directory the client was started from. A missing file is
+  not an error: every section is optional, and a client with no config file at
+  all is one that proxies nothing yet.
+
+  `PpClient.Config` does the work, and is also where a config that arrives some
+  other way — an import from the admin UI — goes in.
+  """
   def load_config(filename) do
     if File.exists?(filename) do
       {config, _} = Code.eval_file(filename)
-      load_endpoints(config)
-      load_servers(config)
-      load_profiles(config)
-      load_conditions(config)
-      load_dns_records(config)
+      Config.load!(config)
       config
     else
       Logger.warning("NOT found the #{filename}")
       %{}
     end
-  end
-
-  defp load_endpoints(config) do
-    (config[:endpoints] || [])
-    |> Stream.map(&Endpoint.new/1)
-    |> Enum.map(&{&1.port, &1})
-    |> then(&:ets.insert(:endpoints, &1))
-  end
-
-  # `servers:` is a keyword list, so the atom key is the server's name.
-  defp load_servers(config) do
-    (config[:servers] || [])
-    |> Stream.map(fn {key, attrs} -> ProxyServer.new(Map.put(attrs, :name, to_string(key))) end)
-    |> Enum.map(&{&1.name, &1})
-    |> then(&:ets.insert(:servers, &1))
-  end
-
-  # Profiles refer to servers by the key they were declared under. The reference
-  # is kept as-is rather than resolved — it is checked here only so a typo fails
-  # at boot, with the profile and the bad name in the message, instead of turning
-  # into a silently unroutable profile later on.
-  defp load_profiles(config) do
-    (config[:profiles] || [])
-    |> Stream.map(fn profile = %{servers: servers} ->
-      # Deduplicated because a name listed twice would double that server's odds
-      # in the random pick, which is never what a repeated entry means.
-      servers = servers |> Enum.map(&to_string/1) |> Enum.uniq()
-      Enum.each(servers, &validate_server_reference!(profile, &1))
-      ProxyProfile.new(%{profile | servers: servers})
-    end)
-    |> Enum.map(&{&1.name, &1})
-    |> then(&:ets.insert(:profiles, &1))
-  end
-
-  defp validate_server_reference!(profile, name) do
-    if :ets.member(:servers, name) do
-      :ok
-    else
-      raise "Profile #{inspect(profile[:name])} refers to unknown server #{inspect(name)}"
-    end
-  end
-
-  defp load_conditions(config) do
-    (config[:conditions] || "")
-    |> Condition.parse_conditions()
-    |> Enum.map(&{&1.id, &1})
-    |> then(&:ets.insert(:conditions, &1))
-  end
-
-  defp load_dns_records(config) do
-    (config[:dns] || [])
-    |> Stream.map(&DnsRecord.new/1)
-    |> Enum.map(&{&1.domain, &1})
-    |> then(&:ets.insert(:dns_records, &1))
   end
 end

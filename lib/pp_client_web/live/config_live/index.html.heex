@@ -1,0 +1,123 @@
+<Layouts.app flash={@flash}>
+  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+    <.header>
+      Config File
+      <:subtitle>Save the running configuration as a pp.exs, or import one over it</:subtitle>
+      <:actions>
+        <.button
+          href={~p"/admin/config/export"}
+          download
+          class="btn-primary btn-xs sm:btn-sm gap-1"
+        >
+          <.icon name="hero-arrow-down-tray" class="size-4 sm:size-5" />
+          <span class="hidden sm:inline">Download pp.exs</span>
+          <span class="sm:hidden">Download</span>
+        </.button>
+      </:actions>
+    </.header>
+
+    <div class="alert alert-info alert-soft mt-4 text-sm">
+      <.icon name="hero-information-circle" class="size-5 shrink-0" />
+      <span>
+        Every other admin page edits memory only — <code>pp.exs</code>
+        is read once at boot and never written back. Downloading here is how a session's work
+        survives a restart: put the file where you start the client from. The download carries
+        the credentials in full; the preview below has them replaced with <code>:redacted</code>.
+      </span>
+    </div>
+
+    <%!-- Import --%>
+    <div class="card bg-base-100 shadow-xl mt-4 sm:mt-6">
+      <div class="card-body p-4 sm:p-6">
+        <h2 class="card-title text-base sm:text-lg">
+          <.icon name="hero-arrow-up-tray" class="size-5" /> Import
+        </h2>
+
+        <p class="text-sm text-base-content/70">
+          Endpoints, servers, profiles, conditions and DNS records are all replaced by what the
+          file says — anything it leaves out is gone afterwards. The listeners are rebound as part
+          of it. The <code>web:</code>
+          section is kept for the next download but only takes effect at the next restart, since
+          this page is served by the endpoint it configures.
+        </p>
+
+        <form id="import-form" phx-submit="import" phx-change="validate" class="mt-2">
+          <div
+            phx-drop-target={@uploads.config.ref}
+            class="rounded-box border-2 border-dashed border-base-300 p-4 transition-colors hover:border-primary/50"
+          >
+            <.live_file_input
+              upload={@uploads.config}
+              class="file-input file-input-bordered file-input-sm sm:file-input-md w-full"
+            />
+          </div>
+
+          <%!-- Choosing a file stages it; nothing is replaced until the button below
+                is pressed, which is the confirmation step for a destructive action. --%>
+          <div
+            :for={entry <- @uploads.config.entries}
+            class="alert alert-warning alert-soft mt-3 flex-col items-stretch gap-3 text-sm sm:flex-row sm:items-center"
+          >
+            <.icon name="hero-exclamation-triangle" class="size-5 shrink-0" />
+            <div class="min-w-0 flex-1">
+              <p>
+                <span class="font-mono font-semibold">{entry.client_name}</span>
+                is ready. Importing it replaces the whole running configuration and rebinds the
+                listeners.
+              </p>
+              <p :if={upload_errors(@uploads.config, entry) != []} class="mt-1 text-error">
+                {Enum.map_join(
+                  upload_errors(@uploads.config, entry),
+                  ", ",
+                  &upload_error_message/1
+                )}
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <button
+                type="button"
+                phx-click="cancel_upload"
+                phx-value-ref={entry.ref}
+                class="btn btn-ghost btn-sm"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-warning btn-sm gap-1">
+                <.icon name="hero-arrow-path-rounded-square" class="size-4" />
+                Replace configuration
+              </button>
+            </div>
+          </div>
+
+          <p :for={error <- upload_errors(@uploads.config)} class="mt-2 text-sm text-error">
+            {upload_error_message(error)}
+          </p>
+        </form>
+
+        <div :if={@import_error} class="alert alert-error alert-soft mt-3 text-sm items-start">
+          <.icon name="hero-exclamation-triangle" class="size-5 shrink-0" />
+          <div class="min-w-0">
+            <p class="font-semibold">The file was not applied, nothing changed.</p>
+            <pre class="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs">{@import_error}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Preview of what a download would contain --%>
+    <div class="card bg-base-100 shadow-xl mt-4 sm:mt-6">
+      <div class="card-body p-4 sm:p-6">
+        <h2 class="card-title text-base sm:text-lg">
+          <.icon name="hero-document-text" class="size-5" /> Preview
+          <span class="badge badge-warning badge-sm gap-1">
+            <.icon name="hero-eye-slash" class="size-3" /> credentials redacted
+          </span>
+        </h2>
+
+        <div class="mt-2 max-h-[60vh] overflow-auto rounded-box bg-base-200">
+          <pre class="p-3 sm:p-4 text-xs leading-relaxed"><code>{@preview}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layouts.app>

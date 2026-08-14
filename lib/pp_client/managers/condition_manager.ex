@@ -89,6 +89,17 @@ defmodule PpClient.ConditionManager do
     end
   end
 
+  @doc """
+  Re-reads the id counter off the table.
+
+  The next id lives in this process rather than in ETS, so a bulk write straight
+  into the table — `PpClient.Config.replace/1` importing a config file — leaves
+  the counter pointing into the middle of what it wrote, and the next added
+  condition would land on an imported id. This is how that write says it is done.
+  """
+  @spec resync() :: :ok
+  def resync, do: GenServer.call(__MODULE__, :resync)
+
   @spec clear_connect_failed(String.t() | charlist(), non_neg_integer()) :: :ok
   def clear_connect_failed(host, port) do
     case :ets.whereis(:connect_failed) do
@@ -105,9 +116,13 @@ defmodule PpClient.ConditionManager do
 
   @impl true
   def init(_init_arg) do
-    last_id = all_conditions() |> Enum.max_by(& &1.id, fn -> %{id: 0} end) |> Map.get(:id)
     Logger.info("ConditionManager started.")
-    {:ok, %{next_id: last_id + 1}}
+    {:ok, %{next_id: next_id()}}
+  end
+
+  @impl true
+  def handle_call(:resync, _from, state) do
+    {:reply, :ok, %{state | next_id: next_id()}}
   end
 
   @impl true
@@ -181,5 +196,14 @@ defmodule PpClient.ConditionManager do
         Logger.warning("Condition with ID #{id} not found for disabling")
         {:reply, {:error, :not_found}, state}
     end
+  end
+
+  ## Private Functions
+
+  defp next_id do
+    all_conditions()
+    |> Enum.max_by(& &1.id, fn -> %{id: 0} end)
+    |> Map.get(:id)
+    |> Kernel.+(1)
   end
 end

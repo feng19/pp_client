@@ -75,15 +75,28 @@ defmodule PpClient.ProfileManager do
     end
   end
 
+  @doc """
+  Puts the built-in `direct` profile back, unless one is already there.
+
+  A boot invariant: it exists whether or not the config file mentions it, so a
+  condition can be pointed at it to take a host off the proxy. A config that
+  declares its own `direct` keeps it — this only fills the gap.
+
+  Public because a bulk write that empties the table —
+  `PpClient.Config.replace/1` — has to restore it without going through `init/1`.
+  """
+  @spec ensure_direct() :: :ok
+  def ensure_direct do
+    direct = ProxyProfile.direct()
+    :ets.insert_new(@table, {direct.name, direct})
+    :ok
+  end
+
   ## GenServer Callbacks
 
   @impl true
   def init(_init_arg) do
-    if not exists?("default") do
-      default = ProxyProfile.direct()
-      :ets.insert_new(@table, {default.name, default})
-    end
-
+    ensure_direct()
     Logger.info("ProfileManager started.")
     {:ok, %{}}
   end

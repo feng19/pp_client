@@ -20,9 +20,10 @@
         A server whose hostname has an enabled record here is dialled by IP, with the
         domain still carried in the TLS SNI and the <code>Host</code>
         header. Everything else is resolved by the system as usual — nothing is looked
-        up automatically. Records added here live in memory only; put the ones you want
-        to keep in the <code>dns:</code>
-        section of <code>pp.exs</code>.
+        up automatically. Records added here live in memory only; keep them past a
+        restart by downloading a <code>pp.exs</code>
+        from the <.link navigate={~p"/admin/config"} class="link link-primary">Config</.link>
+        page.
       </span>
     </div>
 

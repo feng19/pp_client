@@ -72,6 +72,11 @@ defmodule PpClientWeb.Layouts do
             </.link>
           </li>
           <li>
+            <.link navigate={~p"/admin/config"} class="btn btn-ghost btn-sm">
+              <.icon name="hero-document-text" class="size-5" /> Config
+            </.link>
+          </li>
+          <li>
             <.theme_toggle />
           </li>
         </ul>
@@ -110,6 +115,11 @@ defmodule PpClientWeb.Layouts do
             <li>
               <.link navigate={~p"/admin/dns"} class="flex items-center gap-2">
                 <.icon name="hero-globe-alt" class="size-5" /> DNS
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/admin/config"} class="flex items-center gap-2">
+                <.icon name="hero-document-text" class="size-5" /> Config
               </.link>
             </li>
             <li class="mt-2">
