@@ -1,43 +1,38 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+  <div class="space-y-4 sm:space-y-6">
     <.header>
       Profiles
       <:subtitle>Manage the proxy profiles</:subtitle>
       <:actions>
-        <.button navigate={~p"/admin/profiles/new"} class="btn-sm">
-          <.icon name="hero-plus" class="size-4 sm:size-5" />
-          <span class="hidden sm:inline ml-1">New Profile</span>
+        <.button navigate={~p"/admin/profiles/new"} class="btn btn-primary btn-sm gap-1">
+          <.icon name="hero-plus" class="size-4" />
+          <span class="hidden sm:inline">New Profile</span>
           <span class="sm:hidden">New</span>
         </.button>
       </:actions>
     </.header>
 
     <%!-- Search bar --%>
-    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
-      <%!-- Search box --%>
-      <div class="flex-1">
-        <form phx-change="search" phx-submit="search" class="relative">
-          <input
-            type="text"
-            name="search"
-            value={@search_query}
-            placeholder="Search by profile name or type..."
-            class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
-            autocomplete="off"
-          />
-          <.icon
-            name="hero-magnifying-glass"
-            class="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 text-base-content/50"
-          />
-        </form>
-      </div>
-    </div>
+    <form phx-change="search" phx-submit="search" class="relative">
+      <input
+        type="text"
+        name="search"
+        value={@search_query}
+        placeholder="Search by profile name or type..."
+        class="input input-bordered w-full pl-10"
+        autocomplete="off"
+      />
+      <.icon
+        name="hero-magnifying-glass"
+        class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-base-content/50"
+      />
+    </form>
 
     <%!-- Profile list, desktop table view --%>
     <div class="hidden md:block card bg-base-100 shadow-xl">
       <div class="card-body p-0">
-        <div class="overflow-x-auto max-h-[calc(100vh-20rem)] overflow-y-auto">
-          <table class="table table-zebra table-sm">
+        <div class="max-h-[calc(100dvh-22rem)] min-h-64 overflow-auto">
+          <table class="table table-zebra table-pin-rows table-sm">
             <thead>
               <tr>
                 <th class="w-48">Name</th>
@@ -143,18 +138,19 @@
         </div>
       <% end %>
 
-      <%!-- Profile cards --%>
-      <div id="profiles-mobile" phx-update="stream">
+      <%!-- Profile cards. Rendered from @profiles rather than a second
+           `phx-update="stream"` container — see the comment on load_profiles/1. --%>
+      <div id="profiles-mobile" class="space-y-3">
         <div
-          :for={{id, profile} <- @streams.profiles}
-          id={"#{id}-mobile"}
+          :for={profile <- @profiles}
+          id={"profile-#{profile.name}-mobile"}
           class="card bg-base-100 shadow-lg"
         >
           <div class="card-body p-4">
-            <div class="flex justify-between items-start mb-3">
-              <div class="flex-1">
-                <h3 class="font-bold text-base">{profile.name}</h3>
-                <div class="flex gap-2 mt-2 flex-wrap">
+            <div class="mb-3">
+              <div class="min-w-0">
+                <h3 class="break-anywhere text-base font-bold">{profile.name}</h3>
+                <div class="mt-2 flex flex-wrap gap-2">
                   <span class="badge badge-outline badge-sm">{type_label(profile.type)}</span>
                   <%= if profile.enabled do %>
                     <span class="badge badge-success badge-sm gap-1">
@@ -173,12 +169,11 @@
                 </div>
               </div>
             </div>
-            <div class="flex gap-2 flex-wrap">
+            <div class="flex flex-wrap items-center gap-2">
               <button
                 phx-click="toggle_enable"
                 phx-value-name={profile.name}
-                class="btn btn-sm btn-ghost flex-1"
-                title={if profile.enabled, do: "Disable", else: "Enable"}
+                class="btn btn-sm btn-ghost min-w-28 flex-1"
               >
                 <%= if profile.enabled do %>
                   <.icon name="hero-pause" class="size-4" /> Disable
@@ -188,15 +183,16 @@
               </button>
               <.button
                 navigate={~p"/admin/profiles/#{profile.name}/edit"}
-                class="btn btn-sm btn-ghost"
+                class="btn btn-square btn-sm btn-ghost"
+                aria-label="Edit"
               >
-                <.icon name="hero-pencil" class="size-4" /> Edit
+                <.icon name="hero-pencil" class="size-4" />
               </.button>
               <button
                 phx-click="delete_confirm"
                 phx-value-name={profile.name}
-                class="btn btn-sm btn-ghost text-error"
-                title="Delete"
+                class="btn btn-square btn-sm btn-ghost text-error"
+                aria-label="Delete"
               >
                 <.icon name="hero-trash" class="size-4" />
               </button>
@@ -209,8 +205,8 @@
     <%!-- Form modal --%>
     <%= if @live_action in [:new, :edit] do %>
       <div class="modal modal-open">
-        <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
-          <h3 class="font-bold text-lg mb-4">
+        <div class="modal-box max-h-[85dvh] max-w-2xl overflow-y-auto">
+          <h3 class="mb-4 text-lg font-bold">
             {if @live_action == :new, do: "New Profile", else: "Edit Profile"}
           </h3>
 

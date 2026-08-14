@@ -35,109 +35,73 @@ defmodule PpClientWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar bg-base-200 px-4 sm:px-6 lg:px-8 shadow-sm">
-      <div class="flex-1">
-        <.link navigate={~p"/"} class="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <img src={~p"/images/logo.svg"} width="36" class="w-8 h-8 sm:w-9 sm:h-9" />
-          <span class="text-base sm:text-lg font-bold">PP Client</span>
+    <header class="navbar sticky top-0 z-40 min-h-14 gap-2 border-b border-base-300 bg-base-100/95 px-3 backdrop-blur sm:px-6 lg:px-8">
+      <div class="min-w-0 flex-1">
+        <.link
+          navigate={~p"/"}
+          class="flex min-w-0 items-center gap-2 transition-opacity hover:opacity-80"
+        >
+          <img src={~p"/images/logo.svg"} width="32" height="32" alt="" class="size-8 shrink-0" />
+          <span class="truncate text-base font-bold sm:text-lg">PP Client</span>
         </.link>
       </div>
 
       <%!-- Desktop nav --%>
-      <div class="flex-none hidden lg:flex">
-        <ul class="menu menu-horizontal px-1 gap-2">
-          <li>
-            <.link navigate={~p"/admin/endpoints"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-server" class="size-5" /> Endpoints
+      <nav class="hidden flex-none lg:block">
+        <ul class="menu menu-horizontal menu-sm gap-1 px-0">
+          <li :for={item <- nav_items()}>
+            <.link navigate={item.path} class="whitespace-nowrap">
+              <.icon name={item.icon} class="size-4" />{item.label}
             </.link>
-          </li>
-          <li>
-            <.link navigate={~p"/admin/servers"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-cloud" class="size-5" /> Servers
-            </.link>
-          </li>
-          <li>
-            <.link navigate={~p"/admin/profiles"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-server" class="size-5" /> Profiles
-            </.link>
-          </li>
-          <li>
-            <.link navigate={~p"/admin/conditions"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-server" class="size-5" /> Conditions
-            </.link>
-          </li>
-          <li>
-            <.link navigate={~p"/admin/dns"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-globe-alt" class="size-5" /> DNS
-            </.link>
-          </li>
-          <li>
-            <.link navigate={~p"/admin/config"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-document-text" class="size-5" /> Config
-            </.link>
-          </li>
-          <li>
-            <.theme_toggle />
           </li>
         </ul>
-      </div>
+      </nav>
 
-      <%!-- Mobile hamburger menu --%>
-      <div class="flex-none lg:hidden">
-        <div class="dropdown dropdown-end">
-          <label tabindex="0" class="btn btn-ghost btn-circle">
+      <%!-- The toggle sits outside the mobile menu: it is one tap either way,
+            and a segmented control reads badly as a menu entry. --%>
+      <div class="flex flex-none items-center gap-1">
+        <.theme_toggle />
+
+        <div class="dropdown dropdown-end lg:hidden">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-square" aria-label="Open menu">
             <.icon name="hero-bars-3" class="size-6" />
-          </label>
+          </div>
           <ul
             tabindex="0"
-            class="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-200 rounded-box w-52 gap-1"
+            class="menu dropdown-content z-50 mt-3 w-56 gap-1 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
           >
-            <li>
-              <.link navigate={~p"/admin/endpoints"} class="flex items-center gap-2">
-                <.icon name="hero-server" class="size-5" /> Endpoints
+            <li :for={item <- nav_items()}>
+              <.link navigate={item.path}>
+                <.icon name={item.icon} class="size-5" />{item.label}
               </.link>
-            </li>
-            <li>
-              <.link navigate={~p"/admin/servers"} class="flex items-center gap-2">
-                <.icon name="hero-cloud" class="size-5" /> Servers
-              </.link>
-            </li>
-            <li>
-              <.link navigate={~p"/admin/profiles"} class="flex items-center gap-2">
-                <.icon name="hero-server" class="size-5" /> Profiles
-              </.link>
-            </li>
-            <li>
-              <.link navigate={~p"/admin/conditions"} class="flex items-center gap-2">
-                <.icon name="hero-server" class="size-5" /> Conditions
-              </.link>
-            </li>
-            <li>
-              <.link navigate={~p"/admin/dns"} class="flex items-center gap-2">
-                <.icon name="hero-globe-alt" class="size-5" /> DNS
-              </.link>
-            </li>
-            <li>
-              <.link navigate={~p"/admin/config"} class="flex items-center gap-2">
-                <.icon name="hero-document-text" class="size-5" /> Config
-              </.link>
-            </li>
-            <li class="mt-2">
-              <div class="flex justify-center">
-                <.theme_toggle />
-              </div>
             </li>
           </ul>
         </div>
       </div>
     </header>
 
-    <main class="min-h-screen bg-base-100">
-      {render_slot(@inner_block)}
+    <%!-- Page sits on base-200 so the base-100 cards on it read as raised. --%>
+    <main class="min-h-[calc(100dvh-3.5rem)] bg-base-200">
+      <div class="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+        {render_slot(@inner_block)}
+      </div>
     </main>
 
     <.flash_group flash={@flash} />
     """
+  end
+
+  # Single source for both the desktop bar and the mobile menu, so the two
+  # cannot drift apart.
+  defp nav_items do
+    [
+      %{path: ~p"/admin/endpoints", label: "Endpoints", icon: "hero-signal"},
+      %{path: ~p"/admin/servers", label: "Servers", icon: "hero-cloud"},
+      %{path: ~p"/admin/profiles", label: "Profiles", icon: "hero-identification"},
+      %{path: ~p"/admin/conditions", label: "Conditions", icon: "hero-funnel"},
+      %{path: ~p"/admin/dns", label: "DNS", icon: "hero-globe-alt"},
+      %{path: ~p"/admin/config", label: "Config", icon: "hero-document-text"}
+    ]
   end
 
   @doc """
@@ -190,29 +154,32 @@ defmodule PpClientWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
+    <div class="card relative flex w-[5.75rem] shrink-0 flex-row items-center rounded-full border-2 border-base-300 bg-base-300">
+      <div class="absolute h-full w-1/3 rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex w-1/3 cursor-pointer justify-center p-2"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
+        aria-label="Use the system theme"
       >
         <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex w-1/3 cursor-pointer justify-center p-2"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
+        aria-label="Use the light theme"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex w-1/3 cursor-pointer justify-center p-2"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
+        aria-label="Use the dark theme"
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>

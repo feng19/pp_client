@@ -1,38 +1,36 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+  <div class="space-y-4 sm:space-y-6">
     <.header>
       Conditions
       <:subtitle>Manage the proxy routing rules</:subtitle>
       <:actions>
         <button
           phx-click="refresh_cache"
-          class="btn btn-outline btn-xs sm:btn-sm gap-1 sm:gap-2 mr-2"
+          class="btn btn-outline btn-sm gap-1"
           title="Refresh cache"
         >
-          <.icon name="hero-arrow-path" class="size-3 sm:size-4" />
+          <.icon name="hero-arrow-path" class="size-4" />
           <span class="hidden sm:inline">Refresh cache</span>
           <span class="sm:hidden">Refresh</span>
         </button>
         <button
           phx-click="toggle_connect_failed"
-          class="btn btn-outline btn-xs sm:btn-sm gap-1 sm:gap-2 mr-2"
+          class="btn btn-outline btn-sm gap-1"
+          aria-expanded={to_string(@show_connect_failed)}
         >
-          <.icon name="hero-exclamation-triangle" class="size-3 sm:size-4" />
+          <.icon name="hero-exclamation-triangle" class="size-4" />
           <span class="hidden sm:inline">Failed connections</span>
           <span class="sm:hidden">Failed</span>
-          <%= if @show_connect_failed do %>
-            <.icon name="hero-chevron-up" class="size-3 sm:size-4" />
-          <% else %>
-            <.icon name="hero-chevron-down" class="size-3 sm:size-4" />
-          <% end %>
-          <%= if length(@connect_failed_hosts) > 0 do %>
-            <span class="badge badge-error badge-xs sm:badge-sm">
-              {length(@connect_failed_hosts)}
-            </span>
-          <% end %>
+          <span :if={@connect_failed_hosts != []} class="badge badge-error badge-sm">
+            {length(@connect_failed_hosts)}
+          </span>
+          <.icon
+            name={if @show_connect_failed, do: "hero-chevron-up", else: "hero-chevron-down"}
+            class="size-4"
+          />
         </button>
-        <button phx-click="show_new_form" class="btn btn-primary btn-xs sm:btn-sm gap-1">
-          <.icon name="hero-plus" class="size-4 sm:size-5" />
+        <button phx-click="show_new_form" class="btn btn-primary btn-sm gap-1">
+          <.icon name="hero-plus" class="size-4" />
           <span class="hidden sm:inline">New Condition</span>
           <span class="sm:hidden">New</span>
         </button>
@@ -40,57 +38,51 @@
     </.header>
 
     <%!-- Search and filter bar --%>
-    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
+    <div class="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[1fr_12rem_12rem]">
       <%!-- Search box --%>
-      <div class="flex-1">
-        <form phx-change="search" phx-submit="search" class="relative">
-          <input
-            type="text"
-            name="search"
-            value={@search_query}
-            placeholder="Search by rule or profile..."
-            class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
-            autocomplete="off"
-          />
-          <.icon
-            name="hero-magnifying-glass"
-            class="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 text-base-content/50"
-          />
-        </form>
-      </div>
+      <form phx-change="search" phx-submit="search" class="relative sm:col-span-2 lg:col-span-1">
+        <input
+          type="text"
+          name="search"
+          value={@search_query}
+          placeholder="Search by rule or profile..."
+          class="input input-bordered w-full pl-10"
+          autocomplete="off"
+        />
+        <.icon
+          name="hero-magnifying-glass"
+          class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-base-content/50"
+        />
+      </form>
 
       <%!-- Status filter --%>
-      <div class="w-full sm:w-48">
-        <form phx-change="filter_status">
-          <select name="status" class="select select-bordered select-sm sm:select-md w-full">
-            <option value="all" selected={@filter_status == "all"}>All statuses</option>
-            <option value="enabled" selected={@filter_status == "enabled"}>Enabled</option>
-            <option value="disabled" selected={@filter_status == "disabled"}>Disabled</option>
-          </select>
-        </form>
-      </div>
+      <form phx-change="filter_status">
+        <select name="status" class="select select-bordered w-full">
+          <option value="all" selected={@filter_status == "all"}>All statuses</option>
+          <option value="enabled" selected={@filter_status == "enabled"}>Enabled</option>
+          <option value="disabled" selected={@filter_status == "disabled"}>Disabled</option>
+        </select>
+      </form>
 
       <%!-- Profile filter --%>
-      <div class="w-full sm:w-48">
-        <form phx-change="filter_profile">
-          <select name="profile" class="select select-bordered select-sm sm:select-md w-full">
-            <option value="all" selected={@filter_profile == "all"}>All profiles</option>
-            <%= for profile_name <- @available_profiles do %>
-              <option value={profile_name} selected={@filter_profile == profile_name}>
-                {profile_name}
-              </option>
-            <% end %>
-          </select>
-        </form>
-      </div>
+      <form phx-change="filter_profile">
+        <select name="profile" class="select select-bordered w-full">
+          <option value="all" selected={@filter_profile == "all"}>All profiles</option>
+          <%= for profile_name <- @available_profiles do %>
+            <option value={profile_name} selected={@filter_profile == profile_name}>
+              {profile_name}
+            </option>
+          <% end %>
+        </select>
+      </form>
     </div>
 
     <%!-- Failed connection list --%>
     <%= if @show_connect_failed do %>
-      <div class="mb-4 sm:mb-6">
+      <div>
         <div class="card bg-base-100 shadow-xl">
-          <div class="card-body p-3 sm:p-6">
-            <div class="flex justify-between items-center mb-4">
+          <div class="card-body p-4 sm:p-6">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 class="card-title text-base sm:text-lg">
                 <.icon name="hero-exclamation-triangle" class="size-5 text-warning" />
                 Hosts that failed to connect
@@ -98,11 +90,10 @@
               <%= if length(@connect_failed_hosts) > 0 do %>
                 <button
                   phx-click="clear_all_failed"
-                  class="btn btn-xs sm:btn-sm btn-ghost text-error"
+                  class="btn btn-sm btn-ghost text-error"
                   data-confirm="Clear every failure record?"
                 >
-                  <.icon name="hero-trash" class="size-3 sm:size-4" />
-                  <span class="hidden sm:inline">Clear all</span>
+                  <.icon name="hero-trash" class="size-4" /> Clear all
                 </button>
               <% end %>
             </div>
@@ -116,8 +107,8 @@
                 <p class="text-sm sm:text-base">No failed connections recorded</p>
               </div>
             <% else %>
-              <div class="overflow-x-auto max-h-96 overflow-y-auto">
-                <table class="table table-sm hidden sm:table">
+              <div class="max-h-96 overflow-auto">
+                <table class="table table-pin-rows table-sm hidden md:table">
                   <thead>
                     <tr>
                       <th class="w-80">Pattern</th>
@@ -197,7 +188,7 @@
                 </table>
 
                 <%!-- Mobile card view --%>
-                <div class="sm:hidden space-y-2">
+                <div class="space-y-3 md:hidden">
                   <div :for={host <- @connect_failed_hosts} class="card bg-base-200 p-3">
                     <form
                       phx-submit="create_from_failed_form"
@@ -206,13 +197,11 @@
                       id={"failed-form-mobile-#{host.host}-#{host.port}"}
                       class="space-y-2"
                     >
-                      <div class="flex justify-between items-start mb-2">
-                        <div class="flex-1">
-                          <p class="text-xs text-base-content/70">
-                            {host.count} failures · {format_timestamp(host.timestamp)}
-                          </p>
-                        </div>
-                        <span class="badge badge-error badge-xs gap-1">
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="break-anywhere text-xs text-base-content/70">
+                          {host.count} failures · {format_timestamp(host.timestamp)}
+                        </p>
+                        <span class="badge badge-error badge-sm shrink-0 gap-1">
                           <.icon name="hero-x-circle" class="size-3" />
                         </span>
                       </div>
@@ -220,12 +209,12 @@
                         type="text"
                         name="pattern"
                         value={"*.#{to_string(host.host)}"}
-                        class="input input-bordered input-xs w-full font-mono text-xs"
+                        class="input input-bordered input-sm w-full font-mono"
                         placeholder="*.example.com"
                       />
                       <select
                         name="profile"
-                        class="select select-bordered select-xs w-full"
+                        class="select select-bordered select-sm w-full"
                         required
                       >
                         <option value="">Pick a profile</option>
@@ -233,18 +222,19 @@
                           <option value={profile_name}>{profile_name}</option>
                         <% end %>
                       </select>
-                      <div class="flex gap-2">
-                        <button type="submit" class="btn btn-primary btn-xs flex-1 gap-1">
-                          <.icon name="hero-plus" class="size-3" /> Create
+                      <div class="flex items-center gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-1 gap-1">
+                          <.icon name="hero-plus" class="size-4" /> Create
                         </button>
                         <button
                           type="button"
                           phx-click="clear_failed_host"
                           phx-value-host={host.host}
                           phx-value-port={host.port}
-                          class="btn btn-ghost btn-xs text-error"
+                          class="btn btn-square btn-sm btn-ghost text-error"
+                          aria-label="Clear this record"
                         >
-                          <.icon name="hero-trash" class="size-3" />
+                          <.icon name="hero-trash" class="size-4" />
                         </button>
                       </div>
                     </form>
@@ -274,11 +264,11 @@
       </div>
     <% end %>
 
-    <%!-- Condition list --%>
-    <div class="card bg-base-100 shadow-xl">
+    <%!-- Condition list, desktop table view --%>
+    <div class="hidden md:block card bg-base-100 shadow-xl">
       <div class="card-body p-0">
-        <div class="overflow-x-auto max-h-[calc(100vh-24rem)] overflow-y-auto">
-          <table class="table table-zebra table-sm">
+        <div class="max-h-[calc(100dvh-24rem)] min-h-64 overflow-auto">
+          <table class="table table-zebra table-pin-rows table-sm">
             <thead>
               <tr>
                 <th class="w-16">ID</th>
@@ -482,6 +472,196 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <%!-- Condition list, mobile card view. Rendered from @conditions rather than
+         a second `phx-update="stream"` container — see load_conditions/1. --%>
+    <div class="space-y-3 md:hidden">
+      <%!-- New condition form card --%>
+      <div :if={@show_new_form} class="card border border-primary/40 bg-base-100 shadow-lg">
+        <div class="card-body p-4">
+          <h3 class="card-title mb-3 text-base">New Condition</h3>
+          <form id="new-condition-form-mobile" phx-submit="save_new" class="space-y-3">
+            <div>
+              <label class="label label-text text-xs" for="new-condition-pattern">Rule</label>
+              <input
+                id="new-condition-pattern"
+                type="text"
+                name="pattern"
+                class="input input-bordered input-sm w-full font-mono"
+                placeholder="*.example.com"
+                required
+              />
+            </div>
+            <div>
+              <label class="label label-text text-xs" for="new-condition-profile">Profile</label>
+              <select
+                id="new-condition-profile"
+                name="profile_name"
+                class="select select-bordered select-sm w-full"
+                required
+              >
+                <option value="">Pick a profile</option>
+                <option :for={profile_name <- @available_profiles} value={profile_name}>
+                  {profile_name}
+                </option>
+              </select>
+            </div>
+            <div>
+              <label class="label label-text text-xs" for="new-condition-enabled">Status</label>
+              <select
+                id="new-condition-enabled"
+                name="enabled"
+                class="select select-bordered select-sm w-full"
+              >
+                <option value="true" selected>Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+            <div class="flex gap-2 pt-2">
+              <button type="submit" class="btn btn-success btn-sm flex-1 gap-1">
+                <.icon name="hero-check" class="size-4" /> Create
+              </button>
+              <button type="button" phx-click="cancel_new" class="btn btn-ghost btn-sm flex-1">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <%!-- Empty state --%>
+      <div :if={@conditions_empty? && !@show_new_form} class="card bg-base-100 shadow-lg">
+        <div class="card-body py-12 text-center">
+          <p class="text-base-content/60">
+            <%= if @search_query != "" || @filter_status != "all" || @filter_profile != "all" do %>
+              No matching condition
+            <% else %>
+              No conditions yet, create one with the button above
+            <% end %>
+          </p>
+        </div>
+      </div>
+
+      <%!-- Condition cards --%>
+      <div id="conditions-mobile" class="space-y-3">
+        <div
+          :for={condition <- @conditions}
+          id={"condition-#{condition.id}-mobile"}
+          class="card bg-base-100 shadow-lg"
+        >
+          <div class="card-body p-4">
+            <%= if @editing_id == condition.id do %>
+              <%!-- Edit mode --%>
+              <form
+                id={"edit-form-mobile-#{condition.id}"}
+                phx-submit="save_edit"
+                class="space-y-3"
+              >
+                <input type="hidden" name="condition_id" value={condition.id} />
+                <div>
+                  <label class="label label-text text-xs">Rule</label>
+                  <input
+                    type="text"
+                    name="pattern"
+                    value={format_condition(condition.condition)}
+                    class="input input-bordered input-sm w-full font-mono"
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-xs">Profile</label>
+                  <select
+                    name="profile_name"
+                    class="select select-bordered select-sm w-full"
+                    required
+                  >
+                    <option
+                      :for={profile_name <- @available_profiles}
+                      value={profile_name}
+                      selected={condition.profile_name == profile_name}
+                    >
+                      {profile_name}
+                    </option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label label-text text-xs">Status</label>
+                  <select name="enabled" class="select select-bordered select-sm w-full">
+                    <option value="true" selected={condition.enabled}>Enabled</option>
+                    <option value="false" selected={!condition.enabled}>Disabled</option>
+                  </select>
+                </div>
+                <div class="flex gap-2 pt-2">
+                  <button type="submit" class="btn btn-success btn-sm flex-1 gap-1">
+                    <.icon name="hero-check" class="size-4" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="cancel_edit"
+                    class="btn btn-ghost btn-sm flex-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            <% else %>
+              <%!-- Read-only mode --%>
+              <div class="mb-3">
+                <div class="flex items-start justify-between gap-2">
+                  <code class="break-anywhere rounded bg-base-200 px-2 py-1 text-sm">
+                    {format_condition(condition.condition)}
+                  </code>
+                  <span class="shrink-0 font-mono text-xs text-base-content/50">
+                    #{condition.id}
+                  </span>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span class="badge badge-outline badge-sm">{condition.profile_name}</span>
+                  <%= if condition.enabled do %>
+                    <span class="badge badge-success badge-sm gap-1">
+                      <.icon name="hero-check-circle" class="size-3" /> Enabled
+                    </span>
+                  <% else %>
+                    <span class="badge badge-ghost badge-sm gap-1">
+                      <.icon name="hero-x-circle" class="size-3" /> Disabled
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  phx-click="toggle_enable"
+                  phx-value-id={condition.id}
+                  class="btn btn-sm btn-ghost min-w-28 flex-1"
+                >
+                  <%= if condition.enabled do %>
+                    <.icon name="hero-pause" class="size-4" /> Disable
+                  <% else %>
+                    <.icon name="hero-play" class="size-4" /> Enable
+                  <% end %>
+                </button>
+                <button
+                  phx-click="start_edit"
+                  phx-value-id={condition.id}
+                  class="btn btn-square btn-sm btn-ghost"
+                  aria-label="Edit"
+                >
+                  <.icon name="hero-pencil" class="size-4" />
+                </button>
+                <button
+                  phx-click="delete_confirm"
+                  phx-value-id={condition.id}
+                  class="btn btn-square btn-sm btn-ghost text-error"
+                  aria-label="Delete"
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
+            <% end %>
+          </div>
         </div>
       </div>
     </div>

@@ -346,12 +346,17 @@ defmodule PpClientWeb.EndpointLive.Index do
     end
   end
 
+  # A stream drives the desktop table. The mobile cards render the same
+  # endpoints from a plain assign instead: LiveView binds a stream to one
+  # container, so a second `phx-update="stream"` container never receives the
+  # reset and keeps showing endpoints that were filtered out or deleted.
   defp load_endpoints(socket) do
     endpoints = EndpointManager.all_endpoints()
     filtered = filter_endpoints(endpoints, socket.assigns)
 
     socket
     |> assign(:endpoints_empty?, filtered == [])
+    |> assign(:endpoints, filtered)
     |> stream(:endpoints, filtered, reset: true)
   end
 

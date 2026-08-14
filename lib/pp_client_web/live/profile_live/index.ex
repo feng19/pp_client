@@ -208,12 +208,17 @@ defmodule PpClientWeb.ProfileLive.Index do
     end
   end
 
+  # A stream drives the desktop table. The mobile cards render the same profiles
+  # from a plain assign instead: LiveView binds a stream to one container, so a
+  # second `phx-update="stream"` container never receives the reset and keeps
+  # showing profiles that were filtered out or deleted.
   defp load_profiles(socket) do
     profiles = ProfileManager.all_profiles()
     filtered = filter_profiles(profiles, socket.assigns)
 
     socket
     |> assign(:profiles_empty?, filtered == [])
+    |> assign(:profiles, filtered)
     |> stream(:profiles, filtered, reset: true)
   end
 

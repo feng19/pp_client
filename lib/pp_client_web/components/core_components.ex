@@ -55,11 +55,11 @@ defmodule PpClientWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="toast toast-top toast-end z-50 max-w-full"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
+        "alert w-[min(24rem,calc(100vw-2rem))] text-wrap",
         @kind == :info && "alert-info",
         @kind == :error && "alert-error"
       ]}>
@@ -289,18 +289,23 @@ defmodule PpClientWeb.CoreComponents do
     ~H"""
     <header class={[
       @actions != [] &&
-        "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-6",
+        "flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6",
       "pb-3 sm:pb-4"
     ]}>
-      <div class="flex-1 min-w-0">
-        <h1 class="text-base sm:text-lg font-semibold leading-6 sm:leading-8">
+      <div class="min-w-0 flex-1">
+        <h1 class="text-xl font-semibold leading-7 sm:text-2xl sm:leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-xs sm:text-sm text-base-content/70 mt-1">
+        <p :if={@subtitle != []} class="mt-1 text-sm text-base-content/70">
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none w-full sm:w-auto flex gap-2 sm:gap-0">
+      <%!-- Actions wrap onto their own row on narrow screens rather than
+            squeezing the title, and stay right-aligned once there is room. --%>
+      <div
+        :if={@actions != []}
+        class="flex flex-none flex-wrap items-center gap-2 sm:justify-end"
+      >
         {render_slot(@actions)}
       </div>
     </header>

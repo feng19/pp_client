@@ -1,11 +1,11 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+  <div class="space-y-4 sm:space-y-6">
     <.header>
       Endpoints
       <:subtitle>Manage the local proxy listeners</:subtitle>
       <:actions>
         <button phx-click="show_new_form" class="btn btn-primary btn-sm gap-1">
-          <.icon name="hero-plus" class="size-4 sm:size-5" />
+          <.icon name="hero-plus" class="size-4" />
           <span class="hidden sm:inline">New Endpoint</span>
           <span class="sm:hidden">New</span>
         </button>
@@ -13,59 +13,39 @@
     </.header>
 
     <%!-- Search and filter bar --%>
-    <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 my-4 sm:my-6">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
       <%!-- Search box --%>
-      <div class="flex-1">
+      <div class="min-w-0 flex-1">
         <form phx-change="search" phx-submit="search" class="relative">
           <input
             type="text"
             name="search"
             value={@search_query}
             placeholder="Search by port or type..."
-            class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
+            class="input input-bordered w-full pl-10"
             autocomplete="off"
           />
           <.icon
             name="hero-magnifying-glass"
-            class="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 text-base-content/50"
+            class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-base-content/50"
           />
         </form>
       </div>
 
       <%!-- Status filter --%>
-      <div class="flex gap-2 flex-wrap sm:flex-nowrap">
+      <div class="join w-full sm:w-auto">
         <button
+          :for={
+            {status, label} <- [{"all", "All"}, {"enabled", "Enabled"}, {"disabled", "Disabled"}]
+          }
           phx-click="filter"
-          phx-value-status="all"
+          phx-value-status={status}
           class={[
-            "btn btn-xs sm:btn-sm flex-1 sm:flex-none",
-            @filter_status == "all" && "btn-primary",
-            @filter_status != "all" && "btn-ghost"
+            "btn join-item flex-1 sm:flex-none",
+            if(@filter_status == status, do: "btn-primary", else: "btn-ghost")
           ]}
         >
-          All
-        </button>
-        <button
-          phx-click="filter"
-          phx-value-status="enabled"
-          class={[
-            "btn btn-xs sm:btn-sm flex-1 sm:flex-none",
-            @filter_status == "enabled" && "btn-primary",
-            @filter_status != "enabled" && "btn-ghost"
-          ]}
-        >
-          Enabled
-        </button>
-        <button
-          phx-click="filter"
-          phx-value-status="disabled"
-          class={[
-            "btn btn-xs sm:btn-sm flex-1 sm:flex-none",
-            @filter_status == "disabled" && "btn-primary",
-            @filter_status != "disabled" && "btn-ghost"
-          ]}
-        >
-          Disabled
+          {label}
         </button>
       </div>
     </div>
@@ -73,8 +53,8 @@
     <%!-- Endpoint list, desktop table view --%>
     <div class="hidden md:block card bg-base-100 shadow-xl">
       <div class="card-body p-0">
-        <div class="overflow-x-auto max-h-[calc(100vh-20rem)] overflow-y-auto">
-          <table class="table table-zebra table-sm">
+        <div class="max-h-[calc(100dvh-22rem)] min-h-64 overflow-auto">
+          <table class="table table-zebra table-pin-rows table-sm">
             <thead>
               <tr>
                 <th class="w-20">Port</th>
@@ -386,9 +366,9 @@
     <div class="md:hidden space-y-3">
       <%!-- New endpoint form card --%>
       <%= if @show_new_form do %>
-        <div class="card bg-base-200 shadow-lg">
+        <div class="card border border-primary/40 bg-base-100 shadow-lg">
           <div class="card-body p-4">
-            <h3 class="card-title text-base mb-3">New Endpoint</h3>
+            <h3 class="card-title mb-3 text-base">New Endpoint</h3>
             <form id="new-endpoint-form-mobile" phx-submit="save_new" class="space-y-3">
               <div>
                 <label class="label label-text text-xs">Port</label>
@@ -470,11 +450,12 @@
         </div>
       <% end %>
 
-      <%!-- Endpoint cards --%>
-      <div id="endpoints-mobile" phx-update="stream">
+      <%!-- Endpoint cards. Rendered from @endpoints rather than a second
+           `phx-update="stream"` container — see the comment on load_endpoints/1. --%>
+      <div id="endpoints-mobile" class="space-y-3">
         <div
-          :for={{id, endpoint} <- @streams.endpoints}
-          id={"#{id}-mobile"}
+          :for={endpoint <- @endpoints}
+          id={"endpoint-#{endpoint.port}-mobile"}
           class="card bg-base-100 shadow-lg"
         >
           <div class="card-body p-4">
@@ -593,12 +574,11 @@
                   </p>
                 <% end %>
               </div>
-              <div class="flex gap-2 flex-wrap">
+              <div class="flex flex-wrap items-center gap-2">
                 <button
                   phx-click="toggle_enable"
                   phx-value-port={endpoint.port}
-                  class="btn btn-sm btn-ghost flex-1"
-                  title={if endpoint.enable, do: "Disable", else: "Enable"}
+                  class="btn btn-sm btn-ghost min-w-28 flex-1"
                 >
                   <%= if endpoint.enable do %>
                     <.icon name="hero-pause" class="size-4" /> Disable
@@ -610,24 +590,24 @@
                   :if={endpoint.enable && running?(endpoint)}
                   phx-click="restart"
                   phx-value-port={endpoint.port}
-                  class="btn btn-sm btn-ghost"
-                  title="Restart"
+                  class="btn btn-square btn-sm btn-ghost"
+                  aria-label="Restart"
                 >
                   <.icon name="hero-arrow-path" class="size-4" />
                 </button>
                 <button
                   phx-click="start_edit"
                   phx-value-port={endpoint.port}
-                  class="btn btn-sm btn-ghost"
-                  title="Edit"
+                  class="btn btn-square btn-sm btn-ghost"
+                  aria-label="Edit"
                 >
                   <.icon name="hero-pencil" class="size-4" />
                 </button>
                 <button
                   phx-click="delete_confirm"
                   phx-value-port={endpoint.port}
-                  class="btn btn-sm btn-ghost text-error"
-                  title="Delete"
+                  class="btn btn-square btn-sm btn-ghost text-error"
+                  aria-label="Delete"
                 >
                   <.icon name="hero-trash" class="size-4" />
                 </button>
@@ -641,23 +621,23 @@
     <%!-- Delete confirmation dialog --%>
     <%= if @delete_port do %>
       <div class="modal modal-open">
-        <div class="modal-box max-w-sm sm:max-w-md">
-          <h3 class="font-bold text-base sm:text-lg mb-4">Confirm deletion</h3>
-          <p class="py-4 text-sm sm:text-base">
+        <div class="modal-box">
+          <h3 class="mb-4 text-lg font-bold">Confirm deletion</h3>
+          <p class="py-4">
             Delete the endpoint on port <span class="font-mono font-bold">{@delete_port}</span>?
           </p>
-          <p class="text-xs sm:text-sm text-warning">
+          <p class="text-sm text-warning">
             <.icon name="hero-exclamation-triangle" class="size-4 inline" />
             This stops the listener and removes its configuration.
           </p>
           <div class="modal-action">
-            <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">
+            <button phx-click="delete_cancel" class="btn btn-ghost">
               Cancel
             </button>
             <button
               phx-click="delete"
               phx-value-port={@delete_port}
-              class="btn btn-error btn-sm"
+              class="btn btn-error"
             >
               Delete
             </button>

@@ -1,5 +1,5 @@
 <Layouts.app flash={@flash}>
-  <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+  <div class="space-y-4 sm:space-y-6">
     <.header>
       Config File
       <:subtitle>Save the running configuration as a pp.exs, or import one over it</:subtitle>
@@ -7,16 +7,16 @@
         <.button
           href={~p"/admin/config/export"}
           download
-          class="btn-primary btn-xs sm:btn-sm gap-1"
+          class="btn btn-primary btn-sm gap-1"
         >
-          <.icon name="hero-arrow-down-tray" class="size-4 sm:size-5" />
+          <.icon name="hero-arrow-down-tray" class="size-4" />
           <span class="hidden sm:inline">Download pp.exs</span>
           <span class="sm:hidden">Download</span>
         </.button>
       </:actions>
     </.header>
 
-    <div class="alert alert-info alert-soft mt-4 text-sm">
+    <div class="alert alert-info alert-soft items-start text-sm">
       <.icon name="hero-information-circle" class="size-5 shrink-0" />
       <span>
         Every other admin page edits memory only — <code>pp.exs</code>
@@ -27,7 +27,7 @@
     </div>
 
     <%!-- Import --%>
-    <div class="card bg-base-100 shadow-xl mt-4 sm:mt-6">
+    <div class="card bg-base-100 shadow-xl">
       <div class="card-body p-4 sm:p-6">
         <h2 class="card-title text-base sm:text-lg">
           <.icon name="hero-arrow-up-tray" class="size-5" /> Import
@@ -105,17 +105,19 @@
     </div>
 
     <%!-- Preview of what a download would contain --%>
-    <div class="card bg-base-100 shadow-xl mt-4 sm:mt-6">
+    <div class="card bg-base-100 shadow-xl">
       <div class="card-body p-4 sm:p-6">
-        <h2 class="card-title text-base sm:text-lg">
+        <h2 class="card-title flex-wrap text-base sm:text-lg">
           <.icon name="hero-document-text" class="size-5" /> Preview
           <span class="badge badge-warning badge-sm gap-1">
             <.icon name="hero-eye-slash" class="size-3" /> credentials redacted
           </span>
         </h2>
 
-        <div class="mt-2 max-h-[60vh] overflow-auto rounded-box bg-base-200">
-          <pre class="p-3 sm:p-4 text-xs leading-relaxed"><code>{@preview}</code></pre>
+        <%!-- The file is indentation-significant, so it scrolls sideways rather
+             than wrapping. --%>
+        <div class="mt-2 max-h-[60dvh] overflow-auto rounded-box bg-base-200">
+          <pre class="w-max min-w-full p-3 text-xs leading-relaxed sm:p-4"><code class="whitespace-pre">{@preview}</code></pre>
         </div>
       </div>
     </div>

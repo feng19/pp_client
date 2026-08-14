@@ -279,7 +279,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       # Click the edit button
       html =
         view
-        |> element("button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
+        |> element("#conditions button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
         |> render_click()
 
       assert html =~ "edit-form-#{saved.id}"
@@ -301,7 +301,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       # Click the edit button
       view
-      |> element("button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
+      |> element("#conditions button[phx-click='start_edit'][phx-value-id='#{saved.id}']")
       |> render_click()
 
       # Submit the edit form
@@ -344,7 +344,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
       view
-      |> element("button[phx-click='toggle_enable'][phx-value-id='#{saved.id}']")
+      |> element("#conditions button[phx-click='toggle_enable'][phx-value-id='#{saved.id}']")
       |> render_click()
 
       {:ok, updated} = ConditionManager.get_condition(saved.id)
@@ -365,7 +365,7 @@ defmodule PpClientWeb.ConditionLiveTest do
       {:ok, view, _html} = live(conn, ~p"/admin/conditions")
 
       view
-      |> element("button[phx-click='toggle_enable'][phx-value-id='#{saved.id}']")
+      |> element("#conditions button[phx-click='toggle_enable'][phx-value-id='#{saved.id}']")
       |> render_click()
 
       {:ok, updated} = ConditionManager.get_condition(saved.id)
@@ -389,7 +389,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       html =
         view
-        |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
+        |> element("#conditions button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
         |> render_click()
 
       assert html =~ "Confirm deletion"
@@ -411,7 +411,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       # Open the confirmation dialog
       view
-      |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
+      |> element("#conditions button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
       |> render_click()
 
       # Confirm the deletion
@@ -437,7 +437,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
       # Open the confirmation dialog
       view
-      |> element("button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
+      |> element("#conditions button[phx-click='delete_confirm'][phx-value-id='#{saved.id}']")
       |> render_click()
 
       # Cancel the deletion
@@ -487,7 +487,7 @@ defmodule PpClientWeb.ConditionLiveTest do
 
         html =
           view
-          |> element("button[phx-click='start_edit'][phx-value-id='#{created.id}']")
+          |> element("#conditions button[phx-click='start_edit'][phx-value-id='#{created.id}']")
           |> render_click()
 
         # The form shows the pattern in the expected display format

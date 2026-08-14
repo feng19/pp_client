@@ -377,12 +377,17 @@ defmodule PpClientWeb.ConditionLive.Index do
     end)
   end
 
+  # A stream drives the desktop table. The mobile cards render the same
+  # conditions from a plain assign instead: LiveView binds a stream to one
+  # container, so a second `phx-update="stream"` container never receives the
+  # reset and keeps showing conditions that were filtered out or deleted.
   defp load_conditions(socket) do
     conditions = ConditionManager.all_conditions()
     filtered = filter_conditions(conditions, socket.assigns)
 
     socket
     |> assign(:conditions_empty?, filtered == [])
+    |> assign(:conditions, filtered)
     |> stream(:conditions, filtered, reset: true)
   end
 
