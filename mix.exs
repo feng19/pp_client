@@ -6,8 +6,8 @@ defmodule PpClient.MixProject do
   def project do
     [
       app: @app,
-      version: "0.4.0",
-      elixir: "~> 1.15",
+      version: "0.4.1",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -48,13 +48,13 @@ defmodule PpClient.MixProject do
   defp deps do
     [
       {:live_debugger, "~> 0.4", only: [:dev]},
-      {:phoenix, "~> 1.8.1"},
+      {:phoenix, "~> 1.8.9"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.1.0"},
+      {:phoenix_live_view, "~> 1.2.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",

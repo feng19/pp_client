@@ -10,10 +10,12 @@ find_process:
 	ps -ef | grep pp_client
 
 escript:
+	mix assets.deploy
 	MIX_ENV=prod mix escript.build
 
 uninstall:
 	pp_client maintenance uninstall -f
 
 release:
+	mix assets.deploy
 	BURRITO_TARGET=macos_aarch64 MIX_ENV=prod mix release --force --overwrite

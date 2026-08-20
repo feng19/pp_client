@@ -1,6 +1,7 @@
 defmodule PpClient.WSClientTest do
   use ExUnit.Case, async: true
 
+  import Bitwise
   import ExUnit.CaptureLog
 
   alias PpClient.DnsRecord
@@ -153,5 +154,80 @@ defmodule PpClient.WSClientTest do
     assert log =~ "nxdomain"
   end
 
+  test "a cf-workers route keeps the tunnel warm with pings and answers them" do
+    {:ok, lsock} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(lsock)
+
+    setting = Map.merge(setting(port), %{type: "cf-workers", password: @password})
+    {:ok, client} = WSClient.start_link(@target, setting, self())
+
+    {:ok, sock} = :gen_tcp.accept(lsock, 5000)
+    {:ok, request} = :gen_tcp.recv(sock, 0, 5000)
+    :ok = :gen_tcp.send(sock, handshake_reply(request))
+    assert_receive {:"$gen_cast", :connected}, 5000
+
+    # A tick of the keepalive timer puts a text ping on the wire.
+    send(client, :ws_ping)
+    assert {:ok, frame} = :gen_tcp.recv(sock, 0, 5000)
+    assert {0x1, "pp-ping"} = decode_client_frame(frame)
+
+    # A ping from the proxy is answered with a pong, and a pong is dropped —
+    # neither is relayed into the target as tunnel data.
+    :ok = :gen_tcp.send(sock, encode_server_text("pp-ping"))
+    assert {:ok, frame} = :gen_tcp.recv(sock, 0, 5000)
+    assert {0x1, "pp-pong"} = decode_client_frame(frame)
+
+    :ok = :gen_tcp.send(sock, encode_server_text("pp-pong"))
+    Process.sleep(50)
+    assert Process.alive?(client)
+
+    :gen_tcp.close(sock)
+    :gen_tcp.close(lsock)
+  end
+
+  test "routes that are not cf-workers do not ping" do
+    {:ok, lsock} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, port} = :inet.port(lsock)
+
+    {:ok, client} = WSClient.start_link(@target, setting(port), self())
+
+    {:ok, sock} = :gen_tcp.accept(lsock, 5000)
+    {:ok, request} = :gen_tcp.recv(sock, 0, 5000)
+    :ok = :gen_tcp.send(sock, handshake_reply(request))
+    assert_receive {:"$gen_cast", :connected}, 5000
+
+    send(client, :ws_ping)
+    assert {:error, :timeout} = :gen_tcp.recv(sock, 0, 200)
+
+    :gen_tcp.close(sock)
+    :gen_tcp.close(lsock)
+  end
+
   defp setting(port), do: %{uri: "ws://localhost:#{port}/ws", type: "plain"}
+
+  # Client→server frames are masked per RFC 6455; this decodes a single
+  # unfragmented frame as {opcode, payload}.
+  defp decode_client_frame(frame) do
+    <<first::8, second::8, rest::binary>> = frame
+    opcode = band(first, 0x0F)
+    len = band(second, 0x7F)
+    <<mask::binary-size(4), payload::binary-size(^len), _::binary>> = rest
+
+    data =
+      payload
+      |> :binary.bin_to_list()
+      |> Enum.with_index()
+      |> Enum.map(fn {byte, i} -> bxor(byte, :binary.at(mask, rem(i, 4))) end)
+      |> :binary.list_to_bin()
+
+    {opcode, data}
+  end
+
+  defp encode_server_text(data) do
+    <<0x81, byte_size(data)::8>> <> data
+  end
 end

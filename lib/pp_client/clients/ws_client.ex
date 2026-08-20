@@ -8,6 +8,16 @@ defmodule PpClient.WSClient do
   @sign_secret "90de3456asxdfrtg"
   @domain 0x03
 
+  # Keepalive for the cf-workers route. The proxy answers an application-level
+  # ping with a pong of its own, so an idle tunnel is not reaped and a peer
+  # that vanished is noticed on the next tick. Text frames are the control
+  # channel — tunnel data only ever rides binary frames — so the ping/pong is
+  # never mistaken for data, and server types that do not speak this protocol
+  # (exps, plain) are left alone.
+  @ping_interval 60_000
+  @ping "pp-ping"
+  @pong "pp-pong"
+
   def start_link(target, setting, parent) when is_list(setting) do
     start_link(target, Map.new(setting), parent)
   end
@@ -83,6 +93,8 @@ defmodule PpClient.WSClient do
     # the life of the tunnel.
     state = %{state | opts: Keyword.replace_lazy(state.opts, :headers, &Redact.headers/1)}
 
+    schedule_ping(state)
+
     if first_frame do
       {:reply, first_frame, state}
     else
@@ -94,6 +106,19 @@ defmodule PpClient.WSClient do
   def handle_frame({:binary, data}, state) do
     {:noreply, relay(data, state)}
   end
+
+  # Every RFC 6455 peer may ping us at the protocol level, so answer instead of
+  # crashing on an unhandled frame; pongs are swallowed.
+  def handle_frame({:ping, _data}, state), do: {:reply, {:pong, ""}, state}
+  def handle_frame({:pong, _data}, state), do: {:noreply, state}
+
+  # The cf-workers proxy's keepalive frames (see @ping/@pong).
+  def handle_frame({:text, @ping}, state), do: {:reply, {:text, @pong}, state}
+  def handle_frame({:text, @pong}, state), do: {:noreply, state}
+
+  # Any other text frame is not tunnel data — drop it rather than relaying it
+  # into the target.
+  def handle_frame({:text, _data}, state), do: {:noreply, state}
 
   def handle_frame({:close, _, _}, state) do
     close(state)
@@ -144,6 +169,17 @@ defmodule PpClient.WSClient do
 
   def handle_info({error, _socket, reason}, state) when error in [:ssl_error, :tcp_error] do
     handle_error(reason, state)
+  end
+
+  # Keepalive tick (see schedule_ping/1): put a ping on the wire and arm the
+  # next one. Casting to self sends it through the same path as tunnel data.
+  def handle_info(:ws_ping, state) do
+    if keepalive?(state) do
+      Wind.Client.send(self(), {:text, @ping})
+      Process.send_after(self(), :ws_ping, @ping_interval)
+    end
+
+    {:noreply, state}
   end
 
   # Wind marks handle_info/2 overridable; everything else is its own.
@@ -214,6 +250,17 @@ defmodule PpClient.WSClient do
   defp close(state) do
     %{parent: parent} = Keyword.fetch!(state.opts, :pp)
     GenServer.cast(parent, :close)
+  end
+
+  # Only the cf-workers proxy speaks this ping/pong protocol; other server
+  # types would relay the text frame into the target as data.
+  defp keepalive?(state) do
+    Keyword.fetch!(state.opts, :pp)[:setting][:type] == "cf-workers"
+  end
+
+  defp schedule_ping(state) do
+    if keepalive?(state), do: Process.send_after(self(), :ws_ping, @ping_interval)
+    state
   end
 
   defp get_first_frame_by_type(
