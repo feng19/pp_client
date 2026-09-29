@@ -19,6 +19,7 @@ defmodule PpClient.Config do
 
   alias PpClient.{
     Cache,
+    CmdPortManager,
     Condition,
     ConditionManager,
     DnsRecord,
@@ -60,6 +61,18 @@ defmodule PpClient.Config do
 
   @spec put_web(map() | keyword() | nil) :: :ok
   def put_web(web), do: Application.put_env(:pp_client, :web_config, web)
+
+  @doc """
+  The `cmd_ports:` section of the configuration that is currently loaded.
+
+  Like `web/0`, it has no table: `PpClient.CmdPortManager` holds the running
+  ports, and this is the list it starts them from and `dump/1` writes back out.
+  """
+  @spec cmd_ports() :: [map()]
+  def cmd_ports, do: Application.get_env(:pp_client, :cmd_ports_config, [])
+
+  @spec put_cmd_ports([map()]) :: :ok
+  def put_cmd_ports(cmd_ports), do: Application.put_env(:pp_client, :cmd_ports_config, cmd_ports)
 
   ## Reading
 
@@ -123,6 +136,7 @@ defmodule PpClient.Config do
     %{
       web: config[:web],
       endpoints: Enum.map(config[:endpoints] || [], &Endpoint.new/1),
+      cmd_ports: Enum.map(config[:cmd_ports] || [], &build_cmd_port!/1),
       servers: servers,
       profiles: build_profiles(config, servers),
       conditions: Condition.parse_conditions(config[:conditions] || ""),
@@ -146,6 +160,7 @@ defmodule PpClient.Config do
   @spec insert!(map()) :: :ok
   def insert!(built) do
     put_web(built.web)
+    put_cmd_ports(built.cmd_ports)
     insert(:endpoints, built.endpoints, & &1.port)
     insert(:servers, built.servers, & &1.name)
     insert(:profiles, built.profiles, & &1.name)
@@ -191,6 +206,7 @@ defmodule PpClient.Config do
     ProfileManager.ensure_direct()
     ConditionManager.resync()
 
+    CmdPortManager.reload(built.cmd_ports)
     failed = start_endpoints(built.endpoints)
     Cache.refresh()
     notify()
@@ -199,6 +215,7 @@ defmodule PpClient.Config do
 
     %{
       endpoints: length(built.endpoints),
+      cmd_ports: length(built.cmd_ports),
       servers: length(built.servers),
       profiles: length(built.profiles),
       conditions: length(built.conditions),
@@ -209,6 +226,21 @@ defmodule PpClient.Config do
 
   defp insert(table, entities, key) do
     :ets.insert(table, Enum.map(entities, &{key.(&1), &1}))
+  end
+
+  defp build_cmd_port!(%{name: name, cmd: cmd} = entry)
+       when is_binary(name) and is_binary(cmd) do
+    args = Map.get(entry, :args, [])
+
+    unless is_list(args) and Enum.all?(args, &is_binary/1) do
+      raise "cmd_port #{inspect(name)}: args must be a list of strings, got: #{brief(args)}"
+    end
+
+    %{name: name, cmd: cmd, args: args}
+  end
+
+  defp build_cmd_port!(other) do
+    raise "cmd_port must be a map with a string :name and :cmd, got: #{brief(other)}"
   end
 
   # `servers:` is a keyword list, so the atom key is the server's name.
@@ -294,6 +326,7 @@ defmodule PpClient.Config do
     %{
       web: #{dump_web()},
       endpoints: #{items(dump_endpoints())},
+      cmd_ports: #{items(dump_cmd_ports())},
       servers: #{items(dump_servers(redact?))},
       dns: #{items(dump_dns())},
       profiles: #{items(dump_profiles())},
@@ -330,6 +363,12 @@ defmodule PpClient.Config do
       "%{enable: #{endpoint.enable}, type: #{inspect(endpoint.type)}, " <>
         "ip: #{inspect(endpoint.ip)}, port: #{endpoint.port}, " <>
         "options: #{inspect(endpoint.options, limit: :infinity)}}"
+    end)
+  end
+
+  defp dump_cmd_ports do
+    Enum.map(cmd_ports(), fn %{name: name, cmd: cmd, args: args} ->
+      "%{name: #{inspect(name)}, cmd: #{inspect(cmd)}, args: #{inspect(args, limit: :infinity)}}"
     end)
   end
 

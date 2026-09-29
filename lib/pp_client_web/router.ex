@@ -37,6 +37,8 @@ defmodule PpClientWeb.Router do
 
     live "/dns", DnsRecordLive.Index, :index
 
+    live "/cmd_ports", CmdPortLive.Index, :index
+
     live "/config", ConfigLive.Index, :index
     # A LiveView cannot send a file, so the download is a plain request.
     get "/config/export", ConfigController, :export

@@ -100,6 +100,7 @@ defmodule PpClientWeb.Layouts do
       %{path: ~p"/admin/profiles", label: "Profiles", icon: "hero-identification"},
       %{path: ~p"/admin/conditions", label: "Conditions", icon: "hero-funnel"},
       %{path: ~p"/admin/dns", label: "DNS", icon: "hero-globe-alt"},
+      %{path: ~p"/admin/cmd_ports", label: "Cmd Ports", icon: "hero-command-line"},
       %{path: ~p"/admin/config", label: "Config", icon: "hero-document-text"}
     ]
   end

@@ -13,6 +13,7 @@ defmodule PpClient.Application do
 
   @impl true
   def start(_type, _args) do
+    PpClient.SignalHandler.install()
     init_ets_tables()
     config = load_config(@config_filename)
     web_opts = config[:web] || []
@@ -32,6 +33,7 @@ defmodule PpClient.Application do
 
     children =
       [
+        PpClient.CmdPortManager,
         PpClient.ServerManager,
         PpClient.ProfileManager,
         PpClient.ConditionManager,

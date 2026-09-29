@@ -43,6 +43,15 @@ password = System.get_env("PP_CF_PASSWORD") || "change-me"
     %{enable: false, type: :auto, ip: {0, 0, 0, 0}, port: 9070, options: []}
   ],
 
+  # -- Commands kept running ---------------------------------------------
+  # External commands (e.g. autossh tunnels) started with the client, restarted
+  # when they exit, and stopped (TERM, then KILL after 5s) on shutdown. Point a
+  # socks5 server below at the port they open.
+  # name: used in logs; cmd: looked up on PATH; args: list of strings
+  cmd_ports: [
+    %{name: "dev", cmd: "autossh", args: ~w"-M 0 -qND 1088 dev"}
+  ],
+
   # -- Upstream proxy servers --------------------------------------------
   # The key is the atom that profiles refer to; a profile lists those keys and
   # nothing else, so one server can back several profiles and is defined once.

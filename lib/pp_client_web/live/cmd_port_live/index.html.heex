@@ -1,0 +1,86 @@
+<Layouts.app flash={@flash}>
+  <div class="space-y-4 sm:space-y-6">
+    <.header>
+      Cmd Ports
+      <:subtitle>
+        External commands, such as autossh tunnels, kept running alongside the client
+      </:subtitle>
+    </.header>
+
+    <div class="alert alert-info alert-soft items-start text-sm">
+      <.icon name="hero-information-circle" class="size-5 shrink-0" />
+      <span>
+        Commands come from the <code>cmd_ports</code>
+        section of <code>pp.exs</code>. One that exits by itself is restarted after
+        a couple of seconds; one stopped here stays stopped until started again.
+      </span>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body p-0">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra table-sm">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Command</th>
+                <th>PID</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cmd-ports">
+              <tr :if={@cmd_ports_empty?} id="empty-state">
+                <td colspan="5" class="py-8 text-center text-base-content/60">
+                  No cmd_ports configured
+                </td>
+              </tr>
+              <tr :for={cmd_port <- @cmd_ports} id={"cmd-port-#{cmd_port.name}"} class="hover">
+                <td class="font-semibold">{cmd_port.name}</td>
+                <td class="break-anywhere font-mono text-xs">{command_line(cmd_port)}</td>
+                <td class="font-mono">{cmd_port.os_pid || "-"}</td>
+                <td>
+                  <% {badge, label} = status_badge(cmd_port.status) %>
+                  <span class={["badge whitespace-nowrap", badge]}>{label}</span>
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <button
+                      :if={cmd_port.status == :running}
+                      id={"stop-#{cmd_port.name}"}
+                      phx-click="stop"
+                      phx-value-name={cmd_port.name}
+                      class="btn btn-sm btn-ghost"
+                      title="Stop"
+                    >
+                      <.icon name="hero-stop" class="size-4" />
+                    </button>
+                    <button
+                      :if={cmd_port.status != :running}
+                      id={"start-#{cmd_port.name}"}
+                      phx-click="start"
+                      phx-value-name={cmd_port.name}
+                      class="btn btn-sm btn-ghost"
+                      title="Start"
+                    >
+                      <.icon name="hero-play" class="size-4" />
+                    </button>
+                    <button
+                      id={"restart-#{cmd_port.name}"}
+                      phx-click="restart"
+                      phx-value-name={cmd_port.name}
+                      class="btn btn-sm btn-ghost"
+                      title="Restart"
+                    >
+                      <.icon name="hero-arrow-path" class="size-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layouts.app>
