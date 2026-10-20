@@ -6,7 +6,7 @@ defmodule PpClient.MixProject do
   def project do
     [
       app: @app,
-      version: "0.4.2",
+      version: "0.4.3",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
