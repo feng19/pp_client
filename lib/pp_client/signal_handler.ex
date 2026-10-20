@@ -10,9 +10,17 @@ defmodule PpClient.SignalHandler do
   @stop_signals [:sigterm, :sighup, :sigquit]
 
   def install do
-    Enum.each(@stop_signals, &:os.set_signal(&1, :handle))
+    Enum.each(@stop_signals, &set_signal/1)
     :gen_event.swap_handler(:erl_signal_server, {:erl_signal_handler, []}, {__MODULE__, []})
     :ok
+  end
+
+  # Not every signal exists on every OS (e.g. Windows rejects some names with
+  # `invalid signal name`), so skip the ones the platform doesn't support.
+  defp set_signal(signal) do
+    :os.set_signal(signal, :handle)
+  rescue
+    ArgumentError -> Logger.debug("signal #{signal} not supported on this platform, skipped")
   end
 
   @impl true
